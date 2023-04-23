@@ -68,7 +68,7 @@ class NerfGoliath(arcade.Window):
         self.clear()
 
         def draw_background():
-            SCALE = 1.5
+            SCALE = 2
             IMG_SIZE = (int(96 * SCALE), int(64 * SCALE))
             xs = consts.SCREEN_WIDTH // IMG_SIZE[0] + 1
             ys = consts.SCREEN_HEIGHT // IMG_SIZE[1] + 1
@@ -85,6 +85,14 @@ class NerfGoliath(arcade.Window):
         draw_background()
         self.camera.use()
         self.scene.draw()
+        if self.player.state.casting:
+            arcade.draw_circle_outline(
+                self.player.indicator_pos[0],
+                self.player.indicator_pos[1],
+                25,
+                border_width=3,
+                color=(0, 0, 0),
+            )
 
     def on_key_press(self, key, modifiers):
         """Called whenever a key is pressed."""
@@ -126,6 +134,8 @@ class NerfGoliath(arcade.Window):
     def handle_collisions(self):
         agents = [self.player] + [bot.player for bot in self.ai]
         for agent in agents:
+            if agent.is_dead():
+                continue
             colls = arcade.check_for_collision_with_list(agent, self.spell_list)
             killed = False
             for col in colls:
@@ -133,7 +143,7 @@ class NerfGoliath(arcade.Window):
                     if col.exploding:
                         killed = True
                     elif col.parent != agent:
-                        col.explode()
+                        # col.explode()
                         killed = True
             if killed:
                 agent.kill()

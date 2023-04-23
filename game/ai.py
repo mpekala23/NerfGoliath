@@ -39,6 +39,10 @@ class EasyAI(AI):
         if offBot:
             self.player.state.dy = random.randint(1, 5)
 
+        if self.player.state.dx == 0 and self.player.state.dy == 0:
+            self.player.state.dx = random.randint(1, 5)
+            self.player.state.dy = random.randint(1, 5)
+
         # Fire a shot every now and then
         SHOT_RATE = 2 * 60
         RELEASE_RATE = 60

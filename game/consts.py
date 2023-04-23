@@ -16,8 +16,12 @@ RESPAWN_TIMER = 2
 # Helper function to return the speed of the new projectile
 def get_speed(diff):
     BASE = 1
-    OFFSET = 2
-    EXP = 3
+    OFFSET = 1.5
+    EXP = 3.75
     MAX_DIFF = 1
     diff = min(MAX_DIFF, diff)
     return BASE + (diff + OFFSET) ** EXP
+
+
+# Stuff to prevent import circles
+SPELL_LIVE_FOR = 500  # In milliseconds

@@ -6,7 +6,7 @@ import math
 import time
 from utils import Mouse, KeyInput, Vec2
 
-WIZARD_SCALING = 3
+WIZARD_SCALING = 1.5
 PLAYER_SPEED = 6
 CAST_SPEED = 3
 DASH_SPEED = 18
@@ -55,10 +55,10 @@ class Player(arcade.Sprite):
         }
         for i in range(4):
             right_texture = arcade.load_texture(
-                f"assets/images/wizzard_m_run_anim_f{i}.png",
+                f"assets/images/wizzard_m_anim_f{i}.png",
             )
             left_texture = arcade.load_texture(
-                f"assets/images/wizzard_m_run_anim_f{i}.png",
+                f"assets/images/wizzard_m_anim_f{i}.png",
                 flipped_horizontally=True,
             )
             self.run_textures[consts.RIGHT].append(right_texture)
@@ -69,14 +69,25 @@ class Player(arcade.Sprite):
         }
         for i in range(4):
             right_texture = arcade.load_texture(
-                f"assets/images/wizzard_m_idle_anim_f{i}.png",
+                f"assets/images/wizzard_m_anim_f{i}.png",
             )
             left_texture = arcade.load_texture(
-                f"assets/images/wizzard_m_idle_anim_f{i}.png",
+                f"assets/images/wizzard_m_anim_f{i}.png",
                 flipped_horizontally=True,
             )
             self.idle_textures[consts.RIGHT].append(right_texture)
             self.idle_textures[consts.LEFT].append(left_texture)
+        self.death_textures = {consts.RIGHT: [], consts.LEFT: []}
+        for i in range(4):
+            right_texture = arcade.load_texture(
+                f"assets/images/wizzard_m_death_f{i}.png",
+            )
+            left_texture = arcade.load_texture(
+                f"assets/images/wizzard_m_death_f{i}.png",
+                flipped_horizontally=True,
+            )
+            self.death_textures[consts.RIGHT].append(right_texture)
+            self.death_textures[consts.LEFT].append(left_texture)
 
         # Set the state and dirty details
         self.state = PlayerState(x=100, y=100, dx=0, dy=0, casting=False, dashing=False)
@@ -90,6 +101,7 @@ class Player(arcade.Sprite):
         # State variables that are functions of the above state
         self.facing = consts.RIGHT
         self.scale = WIZARD_SCALING
+        self.indicator_pos = (-1000, -1000)
 
         # Setup for inputs (will only be used if this is "actually" the player)
         self.press_map = KeyInput(False, False, False, False)
@@ -99,10 +111,15 @@ class Player(arcade.Sprite):
         return self.died_at != None
 
     def kill(self):
+        self.cur_texture = 0
         self.died_at = time.time()
-        self.scale = 0
-        self.state.x = -100
-        self.state.y = -100
+        self.state.dx = 0
+        self.state.dy = 0
+        self.change_x = 0
+        self.change_y = 0
+        self.indicator_pos = (-1000, -1000)
+        self.state.casting = False
+        self.state.dashing = False
 
     def spawn(self, x, y):
         self.state.x = x
@@ -143,6 +160,11 @@ class Player(arcade.Sprite):
         else:
             # Player is idle
             self.texture = self.idle_textures[self.facing][cur_frame]
+
+        if self.is_dead():
+            if int(self.cur_texture * anim_speed) >= 4:
+                self.scale = 0
+            self.texture = self.death_textures[self.facing][cur_frame]
 
     def update_press_map(self, press_map):
         self.press_map = press_map
@@ -210,9 +232,23 @@ class Player(arcade.Sprite):
             self.state.dy = 1
         if not self.press_map.up and self.press_map.down:
             self.state.dy = -1
+        # If casting, show the indicator
+        if self.state.casting:
+            dx = self.mouse.x - self.center_x
+            dy = self.mouse.y - self.center_y
+            vel = Vec2(dx, dy)
+            vel.normalize()
+            speed = consts.get_speed(time.time() - self.mouse.time_down)
+            distance = consts.SPELL_LIVE_FOR * speed * 0.6366
+            ADJUST = 0.06
+            vel.scale(distance * ADJUST)
+            self.indicator_pos = (self.center_x + vel.x, self.center_y + vel.y)
+        else:
+            self.indicator_pos = (-1000, -1000)
 
     def on_update(self, delta_time):
         if self.is_dead():
+            self.update_animation()
             return
         if self.state.dashing and time.time() - self.dash_start > DASH_LENGTH / 1000.0:
             self.state.dashing = False
