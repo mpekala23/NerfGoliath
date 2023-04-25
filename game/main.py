@@ -8,6 +8,7 @@ from utils import KeyInput, Vec2
 from ai import AI, EasyAI
 import time
 import random
+from arcade.experimental import postprocessing
 
 
 class NerfGoliath(arcade.Window):
@@ -26,6 +27,28 @@ class NerfGoliath(arcade.Window):
         self.camera: arcade.Camera = arcade.Camera()
         arcade.set_background_color(arcade.color_from_hex_string("#f8f8f8"))
         self.grass_texture = arcade.load_texture("assets/images/grass.png")
+
+        # Neon colors
+        arcade.set_background_color((6, 6, 6))
+        self.bloom_color_attachment = self.ctx.texture(
+            (consts.SCREEN_WIDTH, consts.SCREEN_HEIGHT)
+        )
+        self.bloom_screen = self.ctx.framebuffer(
+            color_attachments=[self.bloom_color_attachment]
+        )
+        down_sampling = 4
+        size = (
+            consts.SCREEN_WIDTH // down_sampling,
+            consts.SCREEN_HEIGHT // down_sampling,
+        )
+        kernel_size = 21
+        sigma = 4
+        mu = 0
+        step = 1
+        multiplier = 2
+        self.bloom_postprocessing = postprocessing.BloomEffect(
+            size, kernel_size, sigma, mu, multiplier, step
+        )
 
     def setup(self):
         """
@@ -67,23 +90,12 @@ class NerfGoliath(arcade.Window):
         """Render the screen."""
         self.clear()
 
-        def draw_background():
-            SCALE = 2
-            IMG_SIZE = (int(96 * SCALE), int(64 * SCALE))
-            xs = consts.SCREEN_WIDTH // IMG_SIZE[0] + 1
-            ys = consts.SCREEN_HEIGHT // IMG_SIZE[1] + 1
-            for x in range(xs):
-                for y in range(ys):
-                    arcade.draw_texture_rectangle(
-                        x * IMG_SIZE[0] + IMG_SIZE[0] / 2,
-                        y * IMG_SIZE[1] + IMG_SIZE[1] / 2,
-                        IMG_SIZE[0],
-                        IMG_SIZE[1],
-                        self.grass_texture,
-                    )
+        self.bloom_screen.use()
 
-        draw_background()
-        self.camera.use()
+        # Draw to the 'bloom' layer
+        self.bloom_screen.clear()
+
+        # draw_neon_background()
         self.scene.draw()
         if self.player.state.casting:
             arcade.draw_circle_outline(
@@ -93,6 +105,9 @@ class NerfGoliath(arcade.Window):
                 border_width=3,
                 color=(0, 0, 0),
             )
+        self.use()
+
+        self.bloom_postprocessing.render(self.bloom_color_attachment, self)
 
     def on_key_press(self, key, modifiers):
         """Called whenever a key is pressed."""
