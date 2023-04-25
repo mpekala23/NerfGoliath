@@ -4,6 +4,7 @@ from utils import Vec2
 import consts
 import time
 import math
+from arcade.experimental import Shadertoy
 
 EXPLODE_FOR = 240  # In milliseconds
 
@@ -38,6 +39,10 @@ class Spell(arcade.Sprite):
         self.cur_texture = 0
         self.update_hit_box()
 
+        shader_file_path = "shaders/spell.glsl"
+        window_size = (consts.SCREEN_WIDTH, consts.SCREEN_HEIGHT)
+        self.shadertoy = Shadertoy.create_from_file(window_size, shader_file_path)
+
     def update_hit_box(self):
         val = 36 if self.exploding else 8
         self.set_hit_box([(-val, -val), (-val, val), (val, val), (val, -val)])
@@ -68,3 +73,7 @@ class Spell(arcade.Sprite):
             self.cur_texture += 1
             cur_frame = int(self.cur_texture * anim_speed) % 2
             self.texture = self.explode_textures[cur_frame]
+
+    def on_draw(self):
+        self.shadertoy.program["pos"] = self.center_x * 2, self.center_y * 2
+        self.shadertoy.render()

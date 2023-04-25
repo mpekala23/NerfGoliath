@@ -8,7 +8,6 @@ from utils import KeyInput, Vec2
 from ai import AI, EasyAI
 import time
 import random
-from arcade.experimental import postprocessing
 
 
 class NerfGoliath(arcade.Window):
@@ -25,30 +24,8 @@ class NerfGoliath(arcade.Window):
         self.spell_list: arcade.SpriteList = arcade.SpriteList()
         self.press_map = KeyInput(False, False, False, False)
         self.camera: arcade.Camera = arcade.Camera()
-        arcade.set_background_color(arcade.color_from_hex_string("#f8f8f8"))
         self.grass_texture = arcade.load_texture("assets/images/grass.png")
-
-        # Neon colors
         arcade.set_background_color((6, 6, 6))
-        self.bloom_color_attachment = self.ctx.texture(
-            (consts.SCREEN_WIDTH, consts.SCREEN_HEIGHT)
-        )
-        self.bloom_screen = self.ctx.framebuffer(
-            color_attachments=[self.bloom_color_attachment]
-        )
-        down_sampling = 4
-        size = (
-            consts.SCREEN_WIDTH // down_sampling,
-            consts.SCREEN_HEIGHT // down_sampling,
-        )
-        kernel_size = 21
-        sigma = 4
-        mu = 0
-        step = 1
-        multiplier = 2
-        self.bloom_postprocessing = postprocessing.BloomEffect(
-            size, kernel_size, sigma, mu, multiplier, step
-        )
 
     def setup(self):
         """
@@ -62,6 +39,14 @@ class NerfGoliath(arcade.Window):
         # Sprites
         self.scene.add_sprite_list("spells", False)
         self.spell_list = self.scene.get_sprite_list("spells")
+
+        def do_draw():
+            for spell in self.spell_list:
+                if type(spell) != Spell:
+                    continue
+                spell.on_draw()
+
+        self.spell_list.draw = do_draw
 
         self.player = Player(is_managed=False)
         self.scene.add_sprite("player", self.player)
@@ -85,29 +70,6 @@ class NerfGoliath(arcade.Window):
         player_centered = (screen_center_x, screen_center_y)
 
         self.camera.move_to(player_centered)
-
-    def on_draw(self):
-        """Render the screen."""
-        self.clear()
-
-        self.bloom_screen.use()
-
-        # Draw to the 'bloom' layer
-        self.bloom_screen.clear()
-
-        # draw_neon_background()
-        self.scene.draw()
-        if self.player.state.casting:
-            arcade.draw_circle_outline(
-                self.player.indicator_pos[0],
-                self.player.indicator_pos[1],
-                25,
-                border_width=3,
-                color=(0, 0, 0),
-            )
-        self.use()
-
-        self.bloom_postprocessing.render(self.bloom_color_attachment, self)
 
     def on_key_press(self, key, modifiers):
         """Called whenever a key is pressed."""
@@ -184,6 +146,21 @@ class NerfGoliath(arcade.Window):
         self.scene.update()
         self.handle_collisions()
         self.handle_respawns()
+
+    def on_draw(self):
+        """Render the screen."""
+        self.clear()
+        self.camera.use()
+
+        self.scene.draw()
+        if self.player.state.casting:
+            arcade.draw_circle_outline(
+                self.player.indicator_pos[0],
+                self.player.indicator_pos[1],
+                25,
+                border_width=3,
+                color=(0, 0, 0),
+            )
 
 
 def main():
