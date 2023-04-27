@@ -76,4 +76,11 @@ class Spell(arcade.Sprite):
 
     def on_draw(self):
         self.shadertoy.program["pos"] = self.center_x * 2, self.center_y * 2
+        MAX_LEN = 12
+        change_vec = Vec2(self.change_x, self.change_y)
+        if change_vec.length() > MAX_LEN:
+            change_vec.normalize()
+            change_vec.scale(MAX_LEN)
+
+        self.shadertoy.program["vel"] = change_vec.x, change_vec.y
         self.shadertoy.render()

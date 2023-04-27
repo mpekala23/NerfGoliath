@@ -1,4 +1,3 @@
-
 # An exception type for non-existent machines
 class MachineNotFoundException(Exception):
     def __init__(self, name: str):

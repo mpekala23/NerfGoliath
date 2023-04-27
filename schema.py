@@ -1,4 +1,3 @@
-from typing import List
 from game import consts
 import math
 
@@ -247,8 +246,8 @@ class GameState(Wireable):
 
     def __init__(
         self,
-        players: List[Player],
-        spells: List[Spell],
+        players: list[Player],
+        spells: list[Spell],
     ):
         self.players = players
         self.spells = spells

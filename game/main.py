@@ -46,7 +46,8 @@ class NerfGoliath(arcade.Window):
                     continue
                 spell.on_draw()
 
-        # self.spell_list.draw = do_draw
+        # COMMENT OUT TO TURN OFF NEON
+        self.spell_list.draw = do_draw
 
         self.player = Player(is_managed=False)
         self.scene.add_sprite("player", self.player)

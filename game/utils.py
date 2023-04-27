@@ -37,3 +37,6 @@ class Vec2:
     def scale(self, c):
         self.x *= c
         self.y *= c
+
+    def length(self):
+        return math.sqrt(self.x**2 + self.y**2)

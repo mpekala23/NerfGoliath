@@ -1,13 +1,24 @@
+import sys
+
+sys.path.append("..")
+
 import time
 import socket
 import threading
-import pdb
 from typing import Mapping
 from queue import Queue
 from threading import Thread
 import connections.consts as consts
-import connections.errors as errors
-from connections.schema import UNIMPORTANT_REQUEST_TYPES, Machine, Request, Response, TakeoverRequest, NotifResponse, PingResponse
+import errors
+from connections.schema import (
+    UNIMPORTANT_REQUEST_TYPES,
+    Machine,
+    Request,
+    Response,
+    TakeoverRequest,
+    NotifResponse,
+    PingResponse,
+)
 from utils import print_error, print_info
 
 
@@ -24,11 +35,11 @@ class ConnectionManager:
         self.living_siblings = consts.get_other_machines(identity.name)
         self.alive = True
         self.internal_lock = threading.Lock()
-        self.internal_sockets: Mapping[str, any] = {}
+        self.internal_sockets: Mapping[str, socket.socket] = {}
         self.internal_progress: Mapping[str, int] = {}
         self.internal_requests: "Queue[Request]" = Queue()
         self.client_lock = threading.Lock()
-        self.client_sockets: Mapping[str, any] = {}
+        self.client_sockets: Mapping[str, socket.socket] = {}
         self.client_requests: "Queue[(str, Request)]" = Queue()
         self.external_socket = None
         self.health_socket = None
@@ -44,7 +55,8 @@ class ConnectionManager:
         # First it should establish connections to all other internal machines
         listen_thread = Thread(target=self.listen_internally)
         connect_thread = Thread(
-            target=self.handle_internal_connections, args=(progress, ))
+            target=self.handle_internal_connections, args=(progress,)
+        )
         listen_thread.start()
         connect_thread.start()
         listen_thread.join()
@@ -56,12 +68,9 @@ class ConnectionManager:
 
         # At this point we assume that self.internal_sockets is populated
         # with sockets to all other internal machines
-        for (name, sock) in self.internal_sockets.items():
+        for name, sock in self.internal_sockets.items():
             # Be sure to consume with the internal flag set to True
-            consumer_thread = Thread(
-                target=self.consume_internally,
-                args=(sock,)
-            )
+            consumer_thread = Thread(target=self.consume_internally, args=(sock,))
             consumer_thread.start()
 
         # Once all the servers are up we start doing health checks
@@ -96,8 +105,7 @@ class ConnectionManager:
                 payload = conn.recv(2048).decode()
                 (name, raw_other_progress) = payload.split("@@")
                 self.internal_progress[name] = int(raw_other_progress)
-                conn.send(
-                    str(self.internal_progress[self.identity.name]).encode())
+                conn.send(str(self.internal_progress[self.identity.name]).encode())
                 # Add the connection to the map
                 with self.internal_lock:
                     self.internal_sockets[name] = conn
@@ -112,14 +120,11 @@ class ConnectionManager:
         map once connected, and repeats indefinitely
         """
         if sock == None:
-            self.external_socket = socket.socket(
-                socket.AF_INET, socket.SOCK_STREAM)
+            self.external_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         else:
             self.external_socket = sock
-        self.external_socket.setsockopt(
-            socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.external_socket.bind(
-            (self.identity.host_ip, self.identity.client_port))
+        self.external_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.external_socket.bind((self.identity.host_ip, self.identity.client_port))
         self.external_socket.listen()
         try:
             while self.alive:
@@ -141,8 +146,7 @@ class ConnectionManager:
                 name = str(name[1])
                 with self.client_lock:
                     self.client_sockets[name] = conn
-                client_thread = Thread(
-                    target=self.handle_client, args=(name,))
+                client_thread = Thread(target=self.handle_client, args=(name,))
                 client_thread.start()
             self.external_socket.close()
         except Exception as e:
@@ -156,10 +160,8 @@ class ConnectionManager:
             self.health_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         else:
             self.health_socket = sock
-        self.health_socket.setsockopt(
-            socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.health_socket.bind(
-            (self.identity.host_ip, self.identity.health_port))
+        self.health_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.health_socket.bind((self.identity.host_ip, self.identity.health_port))
         self.health_socket.listen()
         try:
             while self.alive:
@@ -179,7 +181,11 @@ class ConnectionManager:
         time.sleep(FREQUENCY)
         while self.alive:
             for sibling in self.living_siblings:
-                sock = sock_arg if sock_arg else socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                sock = (
+                    sock_arg
+                    if sock_arg
+                    else socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                )
                 sock.settimeout(FREQUENCY)
                 try:
                     sock.connect((sibling.host_ip, sibling.health_port))
@@ -192,13 +198,14 @@ class ConnectionManager:
                     self.living_siblings.remove(sibling)
             old_primary_status = self.is_primary
             self.is_primary = consts.should_i_be_primary(
-                self.identity.name, self.living_siblings)
+                self.identity.name, self.living_siblings
+            )
             if self.is_primary and not old_primary_status:
                 print_info(f"Machine {self.identity.name} is now primary!")
                 # Self-trigger an internal request to free control
                 takeover_req = TakeoverRequest()
                 self.internal_requests.put(takeover_req)
-            if (sock_arg):
+            if sock_arg:
                 # For testing purposes
                 break
             time.sleep(FREQUENCY)
@@ -258,8 +265,7 @@ class ConnectionManager:
                     self.connect_internally(name, progress)
                     connected = True
                 except Exception:
-                    print_error(
-                        f"Failed to connect to {name}, retrying in 1 second")
+                    print_error(f"Failed to connect to {name}, retrying in 1 second")
                     time.sleep(1)
 
     def play_catchup(self, get_reqs_by_progress):
@@ -271,7 +277,7 @@ class ConnectionManager:
         machines that need them.
         """
         progress_leader = self.identity.name
-        for (name, prog) in self.internal_progress.items():
+        for name, prog in self.internal_progress.items():
             higher_progress = prog > self.internal_progress[progress_leader]
             same_progress = prog == self.internal_progress[progress_leader]
             if higher_progress or (same_progress and name < progress_leader):
@@ -280,7 +286,7 @@ class ConnectionManager:
         if progress_leader == self.identity.name:
             # We are the progress leader! Yay!
             my_progress = self.internal_progress[self.identity.name]
-            for (name, prog) in self.internal_progress.items():
+            for name, prog in self.internal_progress.items():
                 if name == self.identity.name:
                     continue
                 reqs = get_reqs_by_progress(prog, my_progress)
@@ -291,8 +297,10 @@ class ConnectionManager:
             return
         else:
             # We need to catch up! No!
-            delta = self.internal_progress[progress_leader] - \
-                self.internal_progress[self.identity.name]
+            delta = (
+                self.internal_progress[progress_leader]
+                - self.internal_progress[self.identity.name]
+            )
             if delta == 0:
                 return
             conn = self.internal_sockets[progress_leader]
@@ -397,7 +405,9 @@ class ConnectionManager:
         Kills the connection manager
         """
         self.alive = False
-        for sock in list(self.internal_sockets.values()) + list(self.client_sockets.values()):
+        for sock in list(self.internal_sockets.values()) + list(
+            self.client_sockets.values()
+        ):
             # Helps prevent the weird "address is already in use" error
             try:
                 sock.shutdown(1)
