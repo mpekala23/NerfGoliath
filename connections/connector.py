@@ -5,8 +5,7 @@ from typing import Mapping
 from queue import Queue
 from threading import Thread
 import connections.consts as consts
-import connections.errors as errors
-from connections.schema import Machine, Request, Response, PingResponse
+from connections.machine import Machine, Request, Response, PingResponse
 
 LEXOGRAPHIC = [consts.MACHINE_A, consts.MACHINE_B, consts.MACHINE_C]
 

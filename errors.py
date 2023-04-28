@@ -4,3 +4,11 @@ class MachineNotFoundException(Exception):
         self.name = name
         self.message = f"Machine {name} is not in the identity map"
         super().__init__(self.message)
+
+
+# An exception for when an invalid message tries to be decoded
+class InvalidMessage(Exception):
+    def __init__(self, s: str):
+        self.s = s
+        self.message = f"Invalid wired message: {s}"
+        super().__init__(self.message)

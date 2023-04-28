@@ -1,5 +1,6 @@
 from game import consts
 import math
+import errors
 
 
 class Wireable:
@@ -10,12 +11,32 @@ class Wireable:
     def unique_char() -> str:
         raise NotImplementedError()
 
-    def encode(self) -> str:
+    def encode(self) -> bytes:
         raise NotImplementedError()
 
     @staticmethod
-    def decode(s: str) -> "Wireable":
+    def decode(s: bytes) -> "Wireable":
         raise NotImplementedError()
+
+
+class Ping(Wireable):
+    """
+    A simple ping message to check if a server is still alive.
+    """
+
+    @staticmethod
+    def unique_char() -> str:
+        return "i"
+
+    def __str__(self):
+        return "Ping()"
+
+    def encode(self):
+        return f"{Ping.unique_char()}".encode()
+
+    @staticmethod
+    def decode(_) -> "Ping":
+        return Ping()
 
 
 class Vec2(Wireable):
@@ -42,16 +63,11 @@ class Vec2(Wireable):
 
     def encode(self):
         data = (self.x, self.y)
-        return f"{Vec2.unique_char()}{data[0]}@{data[1]}"
+        return f"{Vec2.unique_char()}{data[0]}@{data[1]}".encode()
 
     @staticmethod
-    def fromstr(s: str):
-        x, y = s[4:-1].split(",")
-        return Vec2(float(x), float(y))
-
-    @staticmethod
-    def decode(s: str) -> "Vec2":
-        data = s[1:].split("@")
+    def decode(s: bytes) -> "Vec2":
+        data = (s.decode())[1:].split("@")
         return Vec2(float(data[0]), float(data[1]))
 
     def __add__(self, other):
@@ -160,11 +176,11 @@ class Spell(Wireable):
 
     def encode(self):
         data = (self.pos.x, self.pos.y, self.ivel.x, self.ivel.y, self.time_till_boom)
-        return f"{Spell.unique_char()}{data[0]}@{data[1]}@{data[2]}@{data[3]}@{data[4]}"
+        return f"{Spell.unique_char()}{data[0]}@{data[1]}@{data[2]}@{data[3]}@{data[4]}".encode()
 
     @staticmethod
-    def decode(s: str):
-        data = s[1:].split("@")
+    def decode(s: bytes):
+        data = (s.decode())[1:].split("@")
         return Spell(
             Vec2(float(data[0]), float(data[1])),
             Vec2(float(data[2]), float(data[3])),
@@ -219,11 +235,11 @@ class Player(Wireable):
             self.facing,
             self.is_casting,
         )
-        return f"{Player.unique_char()}{data[0]}@{data[1]}@{data[2]}@{data[3]}@{data[4]}@{data[5]}@{data[6]}@{data[7]}@{data[8]}"
+        return f"{Player.unique_char()}{data[0]}@{data[1]}@{data[2]}@{data[3]}@{data[4]}@{data[5]}@{data[6]}@{data[7]}@{data[8]}".encode()
 
     @staticmethod
-    def decode(s: str):
-        data = s[1:].split("@")
+    def decode(s: bytes):
+        data = (s.decode())[1:].split("@")
         return Player(
             data[0],
             Vec2(float(data[1]), float(data[2])),
@@ -264,25 +280,37 @@ class GameState(Wireable):
     def encode(self):
         player_encodings = []
         for player in self.players:
-            player_encodings.append(player.encode())
+            player_encodings.append(str(player.encode())[2:-1])
         spell_encodings = []
         for spell in self.spells:
-            spell_encodings.append(spell.encode())
+            spell_encodings.append(str(spell.encode())[2:-1])
+        print(player_encodings, spell_encodings)
         result = GameState.unique_char()
         result += f"{','.join(player_encodings)}"
         result += "#"
         result += f"{','.join(spell_encodings)}"
-        return result
+        return result.encode()
 
     @staticmethod
-    def decode(s: str):
-        data = s[1:].split("#")
+    def decode(s: bytes):
+        data = (s.decode())[1:].split("#")
         player_data = data[0].split(",")
         spell_data = data[1].split(",")
         players = []
         for player in player_data:
-            players.append(Player.decode(player))
+            players.append(Player.decode(player.encode()))
         spells = []
         for spell in spell_data:
-            spells.append(Spell.decode(spell))
+            spells.append(Spell.decode(spell.encode()))
         return GameState(players, spells)
+
+
+WIREABLE_CLASSES = [Ping, Vec2, Spell, Player, GameState]
+
+
+def wire_decode(s: str):
+    if len(s) > 0:
+        for cls in WIREABLE_CLASSES:
+            if s[0] == cls.unique_char():
+                return cls.decode(s)
+    raise errors.InvalidMessage(f"Invalid message: {s}")
