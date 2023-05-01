@@ -23,7 +23,7 @@ class Agent:
         self.conman.initialize()
         self.key_input: KeyInput = KeyInput(False, False, False, False)
         self.mouse_input: MouseInput = MouseInput(Vec2(0, 0), False, False)
-        self.game = Game(self.on_update_key, self.on_update_mouse)
+        self.game = Game(self.identity.name, self.on_update_key, self.on_update_mouse)
         self.game.activate()
         # Note that because the rendering must happen on the main thread, this spins up
         # another thread which will be doing the updates

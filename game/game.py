@@ -12,6 +12,7 @@ from game.spell_sprite import SpellSprite
 from schema import KeyInput, MouseInput, Vec2, InputState, GameState, Spell
 from typing import Callable, Mapping
 import time
+from threading import Lock
 
 SPELL_SPEED_MIN = 7
 SPELL_SPEED_MAX = 20
@@ -27,11 +28,12 @@ class Game(arcade.Window):
 
     def __init__(
         self,
+        screen_name: str,
         on_update_key: Callable[[KeyInput], None],
         on_update_mouse: Callable[[MouseInput], None],
     ):
         # Use the library
-        super().__init__(consts.SCREEN_WIDTH, consts.SCREEN_HEIGHT, consts.SCREEN_TITLE)
+        super().__init__(consts.SCREEN_WIDTH, consts.SCREEN_HEIGHT, screen_name)
         self.scene: arcade.Scene = arcade.Scene()
 
         # Get ready for input
@@ -53,6 +55,10 @@ class Game(arcade.Window):
         self.spell_list = self.scene.get_sprite_list("spells")
         # A helper variable to time how long the player holds the right button
         self.rdown_at: Union[float, None] = None
+        # A list of spells to remove on the next update frame
+        # NOTE: Has to be done like this to prevent thread rendering issues
+        self.spell_kill_list: list[SpellSprite] = []
+        self.spell_kill_lock = Lock()
 
     def setup_for_players(self, player_names: list[str]):
         self.player_list.clear()
@@ -117,6 +123,10 @@ class Game(arcade.Window):
 
     def on_update(self, delta_time):
         self.scene.on_update(delta_time)
+        with self.spell_kill_lock:
+            for spell in self.spell_kill_list:
+                spell.kill()
+            self.spell_kill_list = []
 
     def update(self, delta):
         self.scene.update()
@@ -192,7 +202,6 @@ class Game(arcade.Window):
         in_sprite_list = set()
 
         # Update the state of all existing spells, killing those that don't exist anymore
-        kill_list = []
         for spell_sprite in self.spell_list:
             if type(spell_sprite) != SpellSprite:
                 continue
@@ -200,12 +209,11 @@ class Game(arcade.Window):
                 spell_sprite.state.id not in id_to_spell_map
                 and spell_sprite.state.id != -1
             ):
-                kill_list.append(spell_sprite)
+                with self.spell_kill_lock:
+                    self.spell_kill_list.append(spell_sprite)
             else:
                 spell_sprite.state = id_to_spell_map[spell_sprite.state.id]
                 in_sprite_list.add(spell_sprite.state.id)
-        for spell in kill_list:
-            spell.kill()
 
         # Add the new spells
         for spell in game_state.spells:
