@@ -1,6 +1,7 @@
 from game import consts
 import math
 import errors
+import json
 
 
 class Wireable:
@@ -161,10 +162,10 @@ class Spell(Wireable):
     def unique_char() -> str:
         return "s"
 
-    def __init__(self, id: int, pos: Vec2, ivel: Vec2):
+    def __init__(self, id: int, pos: Vec2, vel: Vec2):
         self.id = id
         self.pos = pos
-        self.vel = ivel
+        self.vel = vel
 
     def __str__(self):
         return f"Spell({self.id} {self.pos}, {self.vel})"
@@ -182,7 +183,7 @@ class Spell(Wireable):
     def decode(s: bytes):
         data = (s.decode())[1:].split("@")
         return Spell(
-            data[0],
+            int(data[0]),
             Vec2(float(data[1]), float(data[2])),
             Vec2(float(data[3]), float(data[4])),
         )
@@ -261,16 +262,19 @@ class GameState(Wireable):
         return "g"
 
     def __init__(
-        self, players: list[Player], spells: list[Spell], spell_count: int = 0
+        self,
+        next_leader: str,
+        players: list[Player],
+        spells: list[Spell],
+        spell_count: int = 0,
     ):
+        self.next_leader = next_leader
         self.players = players
         self.spells = spells
         self.spell_count = spell_count
 
     def __str__(self):
-        return (
-            f"GameState(\n\t{self.players},\n\t{self.spells},\n\t{self.spell_count}\n)"
-        )
+        return f"GameState(\n\t{self.next_leader}\n\t{self.players},\n\t{self.spells},\n\t{self.spell_count}\n)"
 
     def __eq__(self, other):
         if not isinstance(other, GameState):
@@ -285,6 +289,8 @@ class GameState(Wireable):
         for spell in self.spells:
             spell_encodings.append(str(spell.encode())[2:-1])
         result = GameState.unique_char()
+        result += f"{self.next_leader}"
+        result += "#"
         result += f"{','.join(player_encodings)}"
         result += "#"
         result += f"{','.join(spell_encodings)}"
@@ -295,8 +301,9 @@ class GameState(Wireable):
     @staticmethod
     def decode(s: bytes):
         data = (s.decode())[1:].split("#")
-        player_data = data[0].split(",")
-        spell_data = data[1].split(",")
+        next_leader = data[0]
+        player_data = data[1].split(",")
+        spell_data = data[2].split(",")
         players = []
         for player in player_data:
             players.append(Player.decode(player.encode()))
@@ -305,8 +312,8 @@ class GameState(Wireable):
             if len(spell) <= 0:
                 continue
             spells.append(Spell.decode(spell.encode()))
-        spell_count = int(data[2])
-        return GameState(players, spells, spell_count)
+        spell_count = int(data[3])
+        return GameState(next_leader, players, spells, spell_count)
 
 
 class KeyInput(Wireable):
@@ -420,6 +427,130 @@ class InputState(Wireable):
         )
 
 
+class ConnectRequest(Wireable):
+    """
+    A request that can be sent to the negotiator to join the game
+    """
+
+    @staticmethod
+    def unique_char():
+        return "c"
+
+    def __init__(self, name: str, ip: str):
+        self.name = name
+        self.ip = ip
+
+    def __str__(self):
+        return f"ConnectRequest({self.name}, {self.ip})"
+
+    def __eq__(self, other):
+        if type(other) != ConnectRequest:
+            return False
+        return str(self) == str(other)
+
+    def encode(self):
+        return f"{ConnectRequest.unique_char()}{self.name}@{self.ip}".encode()
+
+    @staticmethod
+    def decode(s: bytes):
+        data = (s.decode())[1:].split("@")
+        return ConnectRequest(data[0], data[1])
+
+
+class ConnectResponse(Wireable):
+    """
+    What the negotiator sends in response to a client connecting
+    """
+
+    @staticmethod
+    def unique_char():
+        return "r"
+
+    def __init__(self, success: bool):
+        self.success = success
+
+    def __str__(self):
+        return f"ConnectResponse({self.success})"
+
+    def __eq__(self, other):
+        if type(other) != ConnectResponse:
+            return False
+        return str(self) == str(other)
+
+    def encode(self):
+        return f"{ConnectResponse.unique_char()}{self.success}".encode()
+
+    @staticmethod
+    def decode(s: bytes):
+        data = (s.decode())[1:]
+        return ConnectResponse(data == "True")
+
+
+class Machine(Wireable):
+    """
+    A class that represents the identity of a machine. Most crucially
+    this stores information about which ip/port the machine is listening
+    on, as well as which other machines it is responsible for connecting
+    to.
+    """
+
+    @staticmethod
+    def unique_char():
+        return "t"
+
+    def __init__(
+        self,
+        name: str,
+        host_ip: str,
+        input_port: int,
+        game_port: int,
+        health_port: int,
+        num_listens: int,
+        connections: list[str],
+    ) -> None:
+        # The name of the machine
+        self.name = name
+        # The ip address the machine should listen on for new connections
+        self.host_ip = host_ip
+        # A dedicated port to just receive players input as it changes
+        self.input_port = input_port
+        # The most interesting port, where game state is sent and transitions can happen
+        self.game_port = game_port
+        # The port the machine should listen on for health checks
+        self.health_port = health_port
+        # The number of connections the machine should listen for
+        self.num_listens = num_listens
+        # The names of the machines that this machine should connect to
+        self.connections = connections
+
+    def __str__(self):
+        return f"Machine({self.name}, {self.host_ip}, {self.input_port}, {self.game_port}, {self.health_port}, {self.num_listens}, {self.connections})"
+
+    def __eq__(self, other):
+        if type(other) != Machine:
+            return False
+        return str(self) == str(other)
+
+    def toJson(self):
+        return json.dumps(self, default=lambda o: o.__dict__)
+
+    def encode(self):
+        return (self.unique_char() + self.toJson()).encode()
+
+    @staticmethod
+    def decode(s: bytes):
+        asJson = json.loads(s.decode()[1:])
+        return Machine(
+            asJson["name"],
+            asJson["host_ip"],
+            asJson["input_port"],
+            asJson["game_port"],
+            asJson["health_port"],
+            asJson["num_listens"],
+            asJson["connections"],
+        )
+
+
 WIREABLE_CLASSES = [
     Ping,
     Vec2,
@@ -429,6 +560,9 @@ WIREABLE_CLASSES = [
     KeyInput,
     MouseInput,
     InputState,
+    ConnectRequest,
+    ConnectResponse,
+    Machine,
 ]
 
 
