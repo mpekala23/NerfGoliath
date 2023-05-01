@@ -2,9 +2,9 @@ from connections.manager import ConnectionManager
 from connections.machine import Machine
 from game.game import Game
 from schema import KeyInput, MouseInput, Vec2, InputState, GameState, Player
-import arcade
 from threading import Thread, Lock
 import time
+import random
 
 
 class Agent:
@@ -23,11 +23,12 @@ class Agent:
         self.conman.initialize()
         self.key_input: KeyInput = KeyInput(False, False, False, False)
         self.mouse_input: MouseInput = MouseInput(Vec2(0, 0), False, False)
-        self.game = Game(self.on_update_key, self.on_update_mouse)
+        self.game = Game(self.identity.name, self.on_update_key, self.on_update_mouse)
         self.game.activate()
         # Note that because the rendering must happen on the main thread, this spins up
         # another thread which will be doing the updates
         self.game_state = GameState(
+            "A",
             [Player(name, Vec2(0, 0), Vec2(0, 0)) for name in self.conman.input_map],
             [],
         )
@@ -72,6 +73,12 @@ class Agent:
                     Game.update_game_state(
                         self.game_state, self.conman.input_map, last_input_map
                     )
+                    if random.randint(0, 1000) == 0:
+                        self.game_state.next_leader = (
+                            "B" if self.game_state.next_leader == "A" else "A"
+                        )
+                        print("SWITCH OCCURED")
+
                     self.conman.broadcast_game_state(self.game_state)
                 last_input_map = self.conman.input_map.copy()
                 self.game.take_game_state(self.game_state)

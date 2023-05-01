@@ -15,15 +15,22 @@ from schema import (
     KeyInput,
     MouseInput,
     InputState,
+    ConnectRequest,
+    ConnectResponse,
+    Machine,
     wire_decode,
 )
 
-SPELL = Spell(Vec2(1, 2), Vec2(3, 4), 100)
+SPELL = Spell(1, Vec2(1, 2), Vec2(3, 4))
 PLAYER = Player("test", Vec2(1, 2), Vec2(3, 4))
-GAME_STATE = GameState([PLAYER], [SPELL])
+GAME_STATE = GameState("test", [PLAYER], [SPELL], 3)
 KEY_INPUT = KeyInput(True, True, False, True)
 MOUSE_INPUT = MouseInput(Vec2(1, 6), True, False)
 INPUT_STATE = InputState(KEY_INPUT, MOUSE_INPUT)
+
+CONNECT_REQUEST = ConnectRequest("test", "127.0.0.1")
+CONNECT_RESPONSE = ConnectResponse(True)
+MACHINE = Machine("test", "127.0.0.1", 1, 2, 3, 4, ["other", "players"])
 
 
 def test_Vec2_encode_decode():
@@ -59,3 +66,18 @@ def test_MouseInput_encode_decode():
 def test_InputState_encode_decode():
     assert InputState.decode(INPUT_STATE.encode()) == INPUT_STATE
     assert wire_decode(INPUT_STATE.encode()) == INPUT_STATE
+
+
+def test_ConnectRequest_encode_decode():
+    assert ConnectRequest.decode(CONNECT_REQUEST.encode()) == CONNECT_REQUEST
+    assert wire_decode(CONNECT_REQUEST.encode()) == CONNECT_REQUEST
+
+
+def test_ConnectResponse_encode_decode():
+    assert ConnectResponse.decode(CONNECT_RESPONSE.encode()) == CONNECT_RESPONSE
+    assert wire_decode(CONNECT_RESPONSE.encode()) == CONNECT_RESPONSE
+
+
+def test_Machine_encode_decode():
+    assert Machine.decode(MACHINE.encode()) == MACHINE
+    assert wire_decode(MACHINE.encode()) == MACHINE

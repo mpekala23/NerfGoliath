@@ -222,6 +222,7 @@ class ConnectionManager:
                         continue
                     state = GameState.decode(msg)
                     self.update_game_state(state)
+                    self.leader_name = state.next_leader
         except Exception as e:
             conn.close()
 
