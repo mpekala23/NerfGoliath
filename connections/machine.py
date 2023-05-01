@@ -18,10 +18,9 @@ class Machine:
         self,
         name: str,
         host_ip: str,
-        internal_port: int,
-        client_port: int,
+        input_port: int,
+        game_port: int,
         health_port: int,
-        notif_port: int,
         num_listens: int,
         connections: List[str],
     ) -> None:
@@ -29,14 +28,12 @@ class Machine:
         self.name = name
         # The ip address the machine should listen on for new connections
         self.host_ip = host_ip
-        # The port the machine should listen on for connections from other machines
-        self.internal_port = internal_port
-        # The port the machine should listen on for connections to clients
-        self.client_port = client_port
+        # A dedicated port to just receive players input as it changes
+        self.input_port = input_port
+        # The most interesting port, where game state is sent and transitions can happen
+        self.game_port = game_port
         # The port the machine should listen on for health checks
         self.health_port = health_port
-        # The port the machine should listen on for notification sub requests
-        self.notif_port = notif_port
         # The number of connections the machine should listen for
         self.num_listens = num_listens
         # The names of the machines that this machine should connect to

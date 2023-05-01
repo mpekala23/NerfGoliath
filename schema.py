@@ -161,13 +161,13 @@ class Spell(Wireable):
     def unique_char() -> str:
         return "s"
 
-    def __init__(self, pos: Vec2, ivel: Vec2, time_till_boom: float):
+    def __init__(self, id: int, pos: Vec2, ivel: Vec2):
+        self.id = id
         self.pos = pos
-        self.ivel = ivel
-        self.time_till_boom = time_till_boom
+        self.vel = ivel
 
     def __str__(self):
-        return f"Spell({self.pos}, {self.ivel}, {float(self.time_till_boom)})"
+        return f"Spell({self.id} {self.pos}, {self.vel})"
 
     def __eq__(self, other):
         if type(other) != Spell:
@@ -175,16 +175,16 @@ class Spell(Wireable):
         return str(self) == str(other)
 
     def encode(self):
-        data = (self.pos.x, self.pos.y, self.ivel.x, self.ivel.y, self.time_till_boom)
+        data = (self.id, self.pos.x, self.pos.y, self.vel.x, self.vel.y)
         return f"{Spell.unique_char()}{data[0]}@{data[1]}@{data[2]}@{data[3]}@{data[4]}".encode()
 
     @staticmethod
     def decode(s: bytes):
         data = (s.decode())[1:].split("@")
         return Spell(
-            Vec2(float(data[0]), float(data[1])),
-            Vec2(float(data[2]), float(data[3])),
-            float(data[4]),
+            data[0],
+            Vec2(float(data[1]), float(data[2])),
+            Vec2(float(data[3]), float(data[4])),
         )
 
 
@@ -261,20 +261,20 @@ class GameState(Wireable):
         return "g"
 
     def __init__(
-        self,
-        players: list[Player],
-        spells: list[Spell],
+        self, players: list[Player], spells: list[Spell], spell_count: int = 0
     ):
         self.players = players
         self.spells = spells
+        self.spell_count = spell_count
 
     def __str__(self):
-        return f"GameState(\n\t{self.players},\n\t{self.spells}\n)"
+        return (
+            f"GameState(\n\t{self.players},\n\t{self.spells},\n\t{self.spell_count}\n)"
+        )
 
     def __eq__(self, other):
         if not isinstance(other, GameState):
             return False
-        print("HERERERE", str(self), str(other))
         return str(self) == str(other)
 
     def encode(self):
@@ -284,11 +284,12 @@ class GameState(Wireable):
         spell_encodings = []
         for spell in self.spells:
             spell_encodings.append(str(spell.encode())[2:-1])
-        print(player_encodings, spell_encodings)
         result = GameState.unique_char()
         result += f"{','.join(player_encodings)}"
         result += "#"
         result += f"{','.join(spell_encodings)}"
+        result += "#"
+        result += f"{self.spell_count}"
         return result.encode()
 
     @staticmethod
@@ -301,16 +302,137 @@ class GameState(Wireable):
             players.append(Player.decode(player.encode()))
         spells = []
         for spell in spell_data:
+            if len(spell) <= 0:
+                continue
             spells.append(Spell.decode(spell.encode()))
-        return GameState(players, spells)
+        spell_count = int(data[2])
+        return GameState(players, spells, spell_count)
 
 
-WIREABLE_CLASSES = [Ping, Vec2, Spell, Player, GameState]
+class KeyInput(Wireable):
+    """
+    The data that defines a key input
+    """
+
+    @staticmethod
+    def unique_char() -> str:
+        return "k"
+
+    def __init__(self, left: bool, right: bool, up: bool, down: bool):
+        self.left = left
+        self.right = right
+        self.up = up
+        self.down = down
+
+    def __str__(self):
+        return f"KeyInput({self.left}, {self.right}, {self.up}, {self.down})"
+
+    def __eq__(self, other):
+        if type(other) != KeyInput:
+            return False
+        return str(self) == str(other)
+
+    def encode(self):
+        data = (self.left, self.right, self.up, self.down)
+        return (
+            f"{KeyInput.unique_char()}{data[0]}@{data[1]}@{data[2]}@{data[3]}".encode()
+        )
+
+    @staticmethod
+    def decode(s: bytes):
+        data = (s.decode())[1:].split("@")
+        return KeyInput(
+            data[0] == "True", data[1] == "True", data[2] == "True", data[3] == "True"
+        )
 
 
-def wire_decode(s: str):
+class MouseInput(Wireable):
+    """
+    The data that defines a mouse input
+    """
+
+    @staticmethod
+    def unique_char() -> str:
+        return "m"
+
+    def __init__(self, pos: Vec2, left: bool, right: bool):
+        self.pos = pos
+        self.left = left
+        self.right = right
+
+    def __str__(self):
+        return f"MouseInput({self.pos}, {self.left}, {self.right})"
+
+    def __eq__(self, other):
+        if type(other) != MouseInput:
+            return False
+        return str(self) == str(other)
+
+    def encode(self):
+        data = (self.pos.x, self.pos.y, self.left, self.right)
+        return f"{MouseInput.unique_char()}{data[0]}@{data[1]}@{data[2]}@{data[3]}".encode()
+
+    @staticmethod
+    def decode(s: bytes):
+        data = (s.decode())[1:].split("@")
+        return MouseInput(
+            Vec2(float(data[0]), float(data[1])),
+            data[2] == "True",
+            data[3] == "True",
+        )
+
+
+class InputState(Wireable):
+    """
+    The data that defines the input state
+    """
+
+    @staticmethod
+    def unique_char() -> str:
+        return "n"
+
+    def __init__(
+        self,
+        key_input: KeyInput = KeyInput(False, False, False, False),
+        mouse_input: MouseInput = MouseInput(Vec2(0, 0), False, False),
+    ):
+        self.key_input = key_input
+        self.mouse_input = mouse_input
+
+    def __str__(self):
+        return f"InputState({self.key_input}, {self.mouse_input})"
+
+    def __eq__(self, other):
+        if type(other) != InputState:
+            return False
+        return str(self) == str(other)
+
+    def encode(self):
+        return f"{InputState.unique_char()}{self.key_input.encode().decode()}#{self.mouse_input.encode().decode()}".encode()
+
+    @staticmethod
+    def decode(s: bytes):
+        data = (s.decode())[1:].split("#")
+        return InputState(
+            KeyInput.decode(data[0].encode()), MouseInput.decode(data[1].encode())
+        )
+
+
+WIREABLE_CLASSES = [
+    Ping,
+    Vec2,
+    Spell,
+    Player,
+    GameState,
+    KeyInput,
+    MouseInput,
+    InputState,
+]
+
+
+def wire_decode(s: bytes):
     if len(s) > 0:
         for cls in WIREABLE_CLASSES:
-            if s[0] == cls.unique_char():
+            if s.decode()[0] == cls.unique_char():
                 return cls.decode(s)
     raise errors.InvalidMessage(f"Invalid message: {s}")

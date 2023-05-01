@@ -4,15 +4,14 @@ sys.path.append("..")
 
 import time
 import socket
-import threading
-from typing import Mapping
+from typing import Mapping, Union, Callable
 from queue import Queue
-from threading import Thread
+from threading import Thread, Lock
 import connections.consts as consts
 import errors
 from connections.machine import Machine
 from utils import print_error, print_info
-from schema import Ping, Wireable, wire_decode
+from schema import Ping, InputState, GameState, Wireable, wire_decode
 
 
 class ConnectionManager:
@@ -22,20 +21,25 @@ class ConnectionManager:
     messages based on machine name, ignoring underlying sockets.
     """
 
-    def __init__(self, identity: Machine):
+    def __init__(
+        self, identity: Machine, update_game_state: Callable[[GameState], None]
+    ):
         self.identity = identity
         self.is_primary = False  # Is this the primary?
         self.living_siblings = consts.get_other_machines(identity.name)
         self.alive = True
-        self.socket_map = {}
+        self.input_sockets = {}
+        self.input_lock = Lock()
+        self.input_map = {self.identity.name: InputState()}
+        self.game_sockets = {}
+        self.leader_lock = Lock()
+        self.leader_name: Union[str, None] = "A"
         self.wires_received: Queue[Wireable] = Queue()
+        self.update_game_state = update_game_state
 
     def initialize(self):
         """
-        Does the work of initializing the connection manager
-        @param progress: The progress of this machine (size of log)
-        @param get_reqs_by_progress: A function that returns a list of requests
-        that have been processed by this machine by progress count (can pass in lower and upper bound)
+        Does blocking work to establish connections to peers
         """
         # First it should establish connections to all other internal machines
         listen_thread = Thread(target=self.listen_internally)
@@ -45,12 +49,23 @@ class ConnectionManager:
         listen_thread.join()
         connect_thread.join()
 
-        # At this point we assume that self.internal_sockets is populated
-        # with sockets to all other internal machines
-        for name, sock in self.socket_map.items():
+        # Start the threads that will continuously get input
+        for name, sock in self.input_sockets.items():
             # Be sure to consume with the internal flag set to True
             consumer_thread = Thread(
-                target=self.consume_internally,
+                target=self.consume_input,
+                args=(
+                    name,
+                    sock,
+                ),
+            )
+            consumer_thread.start()
+
+        # Start the threads that will continuously get gamestate
+        for name, sock in self.game_sockets.items():
+            # Be sure to consume with the internal flag set to True
+            consumer_thread = Thread(
+                target=self.consume_game_state,
                 args=(
                     name,
                     sock,
@@ -70,26 +85,40 @@ class ConnectionManager:
         map once connected, and repeats num_listens times.
         """
         # Setup the socket
-        if not sock:
-            # NOTE: The second parameter is only for unit testing purposes
-            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        sock.bind((self.identity.host_ip, self.identity.internal_port))
-        sock.listen()
+
+        input_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        game_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        input_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        game_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        input_sock.bind((self.identity.host_ip, self.identity.input_port))
+        game_sock.bind((self.identity.host_ip, self.identity.game_port))
+        input_sock.listen()
+        game_sock.listen()
         # Listen the specified number of times
         listens_completed = 0
         try:
             while listens_completed < self.identity.num_listens:
-                # Accept the connection
-                conn, _ = sock.accept()
+                # Accept the input connection
+                input_conn, _ = input_sock.accept()
                 # Get the name of the machine that connected
-                name = conn.recv(2048).decode()
+                name = input_conn.recv(2048).decode()
                 # Add the connection to the map
-                self.socket_map[name] = conn
+                self.input_sockets[name] = input_conn
+                self.input_map[name] = InputState()
+
+                # Accept the game_state connection
+                game_conn, _ = game_sock.accept()
+                # Get the name of the machine that connected
+                name = game_conn.recv(2048).decode()
+                # Add the connection to the map
+                self.game_sockets[name] = game_conn
+
                 listens_completed += 1
-            sock.close()
+            input_sock.close()
+            game_sock.close()
         except Exception as e:
-            sock.close()
+            input_sock.close()
+            game_sock.close()
 
     def listen_health(self, sock=None):
         """
@@ -138,7 +167,7 @@ class ConnectionManager:
                 break
             time.sleep(FREQUENCY)
 
-    def connect_internally(self, name: str, progress: int, sock=None):
+    def connect_internally(self, name: str, sock=None):
         """
         Connects to the machine with the given name
         NOTE: Can/is expected to sometimes throw errors
@@ -150,33 +179,53 @@ class ConnectionManager:
             raise (errors.MachineNotFoundException("Invalid machine name"))
         identity = consts.MACHINE_MAP[name]
         # Setup the socket
-        sock = sock if sock else socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.connect((identity.host_ip, identity.internal_port))
-        # Send the name of this machine
-        sock.send(self.identity.name.encode())
-        # Add the connection to the map
-        self.socket_map[name] = sock
+        input_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        game_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        input_sock.connect((identity.host_ip, identity.input_port))
+        input_sock.send(self.identity.name.encode())
+        game_sock.connect((identity.host_ip, identity.game_port))
+        game_sock.send(self.identity.name.encode())
+        self.input_sockets[name] = input_sock
+        self.input_map[name] = InputState()
+        self.game_sockets[name] = game_sock
 
-    def consume_internally(self, name, conn):
+    def consume_input(self, name, conn):
         """
-        Once a connection is established, open a thread that continuously
-        listens for incoming requests
+        Once a connection to the input thread is established, continuously listen
+        for messages and update the input of the player accordingly
         """
         try:
-            # NOTE: The use of timeout here is to ensure that we can
-            # gracefully kill machines. Essentially the machine will check
-            # in once a second to make sure it hasn't been killed, instead
-            # of listening forever.
             while True:
                 # Get the message
                 msg = conn.recv(2048)
                 if not msg or len(msg) <= 0:
                     raise Exception("Connection closed")
-                self.wires_received.put(wire_decode(msg))
+                state = InputState.decode(msg)
+                with self.input_lock:
+                    self.input_map[name] = state
         except Exception:
             conn.close()
 
-    def handle_internal_connections(self, progress: int):
+    def consume_game_state(self, name, conn):
+        """
+        Listens to game from each server. If it ever receives game state from a server
+        that it does not currently think is the leader, it simply drops the packet
+        """
+        try:
+            while True:
+                # Get the message
+                msg = conn.recv(2048)
+                if not msg or len(msg) <= 0:
+                    raise Exception("Connection closed")
+                with self.leader_lock:
+                    if name != self.leader_name:
+                        continue
+                    state = GameState.decode(msg)
+                    self.update_game_state(state)
+        except Exception as e:
+            conn.close()
+
+    def handle_internal_connections(self):
         """
         Handles the connections to other machines
         """
@@ -185,18 +234,46 @@ class ConnectionManager:
             connected = False
             while not connected:
                 try:
-                    self.connect_internally(name, progress)
+                    self.connect_internally(name)
                     connected = True
                 except Exception:
                     print_error(f"Failed to connect to {name}, retrying in 1 second")
                     time.sleep(1)
+
+    def is_leader(self):
+        """
+        Helper function that makes leader-dependent actions more readable
+        """
+        return self.leader_name == self.identity.name
+
+    def broadcast_input(self, input_state: InputState):
+        """
+        Broadcasts this machine's input state to all other machines in the system
+        """
+        # TODO: For efficiency only do this broadcast on changes
+        with self.input_lock:
+            self.input_map[self.identity.name] = input_state
+            for name in self.input_sockets:
+                self.input_sockets[name].send(
+                    self.input_map[self.identity.name].encode()
+                )
+
+    def broadcast_game_state(self, game_state: GameState):
+        """
+        Can only be called when this agent is the leader.
+        Broadcasts the new game state to all players involved
+        """
+        assert self.is_leader()
+        with self.leader_lock:
+            for name in self.game_sockets:
+                self.game_sockets[name].send(game_state.encode())
 
     def kill(self):
         """
         Kills the connection manager
         """
         self.alive = False
-        for sock in list(self.socket_map.values()):
+        for sock in list(self.input_sockets.values()):
             # Helps prevent the weird "address is already in use" error
             try:
                 sock.shutdown(1)
