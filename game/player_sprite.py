@@ -5,7 +5,7 @@ sys.path.append("..")
 from typing import Union
 import arcade
 from arcade import MOUSE_BUTTON_LEFT, MOUSE_BUTTON_RIGHT
-from game.consts import RIGHT, LEFT
+from game.consts import RIGHT, LEFT, SCREEN_WIDTH, SCREEN_HEIGHT
 from schema import Player, Vec2, KeyInput, MouseInput, InputState
 import math
 import time
@@ -122,6 +122,8 @@ class PlayerSprite(arcade.Sprite):
             p_inp.key_input, p_inp.mouse_input
         )
         new_pos = old_state.pos + new_vel
+        new_pos.x = min(SCREEN_WIDTH, max(0, new_pos.x))
+        new_pos.y = min(SCREEN_HEIGHT, max(0, new_pos.y))
         new_is_alive = old_state.is_alive
         new_time_till_respawn = old_state.time_till_respawn
         new_casting = p_inp.mouse_input.right

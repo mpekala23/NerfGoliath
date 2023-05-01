@@ -2,7 +2,7 @@ import sys
 
 sys.path.append("..")
 
-from typing import List
+from typing import List, Union
 import arcade
 from arcade import key as KEY
 from arcade import MOUSE_BUTTON_LEFT, MOUSE_BUTTON_RIGHT
@@ -11,9 +11,11 @@ from game.player_sprite import PlayerSprite
 from game.spell_sprite import SpellSprite
 from schema import KeyInput, MouseInput, Vec2, InputState, GameState, Spell
 from typing import Callable, Mapping
-import random
+import time
 
-SPELL_SPEED = 12
+SPELL_SPEED_MIN = 7
+SPELL_SPEED_MAX = 20
+SPELL_SPEED_SCALING = 8
 
 
 class Game(arcade.Window):
@@ -49,6 +51,8 @@ class Game(arcade.Window):
         self.player_list = self.scene.get_sprite_list("players")
         self.scene.add_sprite_list("spells", False)
         self.spell_list = self.scene.get_sprite_list("spells")
+        # A helper variable to time how long the player holds the right button
+        self.rdown_at: Union[float, None] = None
 
     def setup_for_players(self, player_names: list[str]):
         self.player_list.clear()
@@ -96,6 +100,7 @@ class Game(arcade.Window):
             self.mouse_input.left = True
         if button == MOUSE_BUTTON_RIGHT:
             self.mouse_input.right = True
+            self.rdown_at = time.time()
         self.on_update_mouse(self.mouse_input)
 
     def on_mouse_release(self, x: int, y: int, button: int, modifiers: int):
@@ -104,6 +109,10 @@ class Game(arcade.Window):
             self.mouse_input.left = False
         if button == MOUSE_BUTTON_RIGHT:
             self.mouse_input.right = False
+            self.mouse_input.rheld_for = (
+                0 if self.rdown_at == None else time.time() - self.rdown_at
+            )
+            self.rdown_at = None
         self.on_update_mouse(self.mouse_input)
 
     def on_update(self, delta_time):
@@ -138,11 +147,15 @@ class Game(arcade.Window):
             # Then see what spells we need to spawn
             old_p_inp = last_input_map[old_player.id]
             if old_p_inp.mouse_input.right and not p_inp.mouse_input.right:
+                speed = (
+                    SPELL_SPEED_MIN + p_inp.mouse_input.rheld_for * SPELL_SPEED_SCALING
+                )
+                speed = min(SPELL_SPEED_MAX, speed)
                 # Right button was released between updates
                 pos = new_player.pos
                 vel = p_inp.mouse_input.pos - new_player.pos
                 vel.normalize()
-                vel *= SPELL_SPEED
+                vel *= speed
                 state = Spell(game_state.spell_count + 1, pos, vel)
                 game_state.spells.append(state)
                 game_state.spell_count += 1

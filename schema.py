@@ -355,13 +355,14 @@ class MouseInput(Wireable):
     def unique_char() -> str:
         return "m"
 
-    def __init__(self, pos: Vec2, left: bool, right: bool):
+    def __init__(self, pos: Vec2, left: bool, right: bool, rheld_for: float = 0.0):
         self.pos = pos
         self.left = left
         self.right = right
+        self.rheld_for = rheld_for
 
     def __str__(self):
-        return f"MouseInput({self.pos}, {self.left}, {self.right})"
+        return f"MouseInput({self.pos}, {self.left}, {self.right}, {self.rheld_for})"
 
     def __eq__(self, other):
         if type(other) != MouseInput:
@@ -369,8 +370,8 @@ class MouseInput(Wireable):
         return str(self) == str(other)
 
     def encode(self):
-        data = (self.pos.x, self.pos.y, self.left, self.right)
-        return f"{MouseInput.unique_char()}{data[0]}@{data[1]}@{data[2]}@{data[3]}".encode()
+        data = (self.pos.x, self.pos.y, self.left, self.right, self.rheld_for)
+        return f"{MouseInput.unique_char()}{data[0]}@{data[1]}@{data[2]}@{data[3]}@{data[4]}".encode()
 
     @staticmethod
     def decode(s: bytes):
@@ -379,6 +380,7 @@ class MouseInput(Wireable):
             Vec2(float(data[0]), float(data[1])),
             data[2] == "True",
             data[3] == "True",
+            float(data[4]),
         )
 
 

@@ -3,7 +3,7 @@ from connections.machine import Machine
 from game.game import Game
 from schema import KeyInput, MouseInput, Vec2, InputState, GameState, Player
 import arcade
-from threading import Thread
+from threading import Thread, Lock
 import time
 
 
@@ -31,6 +31,8 @@ class Agent:
             [Player(name, Vec2(0, 0), Vec2(0, 0)) for name in self.conman.input_map],
             [],
         )
+        # Makes sure we don't double create projectiles
+        self.input_lock = Lock()
         self.game.setup_for_players([name for name in self.conman.input_map])
         self.agent_loop_thread = Thread(target=self.agent_loop)
         self.agent_loop_thread.start()
@@ -46,27 +48,33 @@ class Agent:
         """
         Handy setter to allow the game to update the mouse input via callback
         """
-        self.mouse_input = mouse_input
+        with self.input_lock:
+            self.mouse_input = mouse_input
 
     def agent_loop(self):
         AGENT_SLEEP = 0.01
         last_input_map = self.conman.input_map
         while True:
-            new_last = self.conman.input_map.copy()
-            input_state = InputState(
-                self.key_input,
-                MouseInput(
-                    self.mouse_input.pos, self.mouse_input.left, self.mouse_input.right
-                ),
-            )
-            self.conman.broadcast_input(input_state)
-            if self.conman.is_leader():
-                Game.update_game_state(
-                    self.game_state, self.conman.input_map, last_input_map
+            with self.input_lock:
+                input_state = InputState(
+                    self.key_input,
+                    MouseInput(
+                        self.mouse_input.pos,
+                        self.mouse_input.left,
+                        self.mouse_input.right,
+                        self.mouse_input.rheld_for,
+                    ),
                 )
-                self.conman.broadcast_game_state(self.game_state)
-            last_input_map = new_last.copy()
-            self.game.take_game_state(self.game_state)
+                self.conman.broadcast_input(
+                    input_state,
+                )
+                if self.conman.is_leader():
+                    Game.update_game_state(
+                        self.game_state, self.conman.input_map, last_input_map
+                    )
+                    self.conman.broadcast_game_state(self.game_state)
+                last_input_map = self.conman.input_map.copy()
+                self.game.take_game_state(self.game_state)
             time.sleep(AGENT_SLEEP)
 
 
