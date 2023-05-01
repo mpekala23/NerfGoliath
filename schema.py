@@ -2,6 +2,7 @@ from game import consts
 import math
 import errors
 import json
+from typing import Union
 
 
 class Wireable:
@@ -436,12 +437,11 @@ class ConnectRequest(Wireable):
     def unique_char():
         return "c"
 
-    def __init__(self, name: str, ip: str):
+    def __init__(self, name: str):
         self.name = name
-        self.ip = ip
 
     def __str__(self):
-        return f"ConnectRequest({self.name}, {self.ip})"
+        return f"ConnectRequest({self.name})"
 
     def __eq__(self, other):
         if type(other) != ConnectRequest:
@@ -449,12 +449,12 @@ class ConnectRequest(Wireable):
         return str(self) == str(other)
 
     def encode(self):
-        return f"{ConnectRequest.unique_char()}{self.name}@{self.ip}".encode()
+        return f"{ConnectRequest.unique_char()}{self.name}".encode()
 
     @staticmethod
     def decode(s: bytes):
         data = (s.decode())[1:].split("@")
-        return ConnectRequest(data[0], data[1])
+        return ConnectRequest(data[0])
 
 
 class ConnectResponse(Wireable):
@@ -506,7 +506,7 @@ class Machine(Wireable):
         game_port: int,
         health_port: int,
         num_listens: int,
-        connections: list[str],
+        connections: list[list[Union[str, int]]],
     ) -> None:
         # The name of the machine
         self.name = name
@@ -551,6 +551,34 @@ class Machine(Wireable):
         )
 
 
+class StartCommand(Wireable):
+    """
+    A command that tells the game to start
+    """
+
+    @staticmethod
+    def unique_char():
+        return "x"
+
+    def __init__(self):
+        pass
+
+    def __str__(self):
+        return f"StartCommand()"
+
+    def __eq__(self, other):
+        if type(other) != StartCommand:
+            return False
+        return str(self) == str(other)
+
+    def encode(self):
+        return f"{StartCommand.unique_char()}".encode()
+
+    @staticmethod
+    def decode(s: bytes):
+        return StartCommand()
+
+
 WIREABLE_CLASSES = [
     Ping,
     Vec2,
@@ -563,6 +591,7 @@ WIREABLE_CLASSES = [
     ConnectRequest,
     ConnectResponse,
     Machine,
+    StartCommand,
 ]
 
 

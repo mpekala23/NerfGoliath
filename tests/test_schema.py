@@ -28,9 +28,9 @@ KEY_INPUT = KeyInput(True, True, False, True)
 MOUSE_INPUT = MouseInput(Vec2(1, 6), True, False)
 INPUT_STATE = InputState(KEY_INPUT, MOUSE_INPUT)
 
-CONNECT_REQUEST = ConnectRequest("test", "127.0.0.1")
+CONNECT_REQUEST = ConnectRequest("test")
 CONNECT_RESPONSE = ConnectResponse(True)
-MACHINE = Machine("test", "127.0.0.1", 1, 2, 3, 4, ["other", "players"])
+MACHINE = Machine("test", "127.0.0.1", 1, 2, 3, 4, [["127.0.0.2", 1]])
 
 
 def test_Vec2_encode_decode():

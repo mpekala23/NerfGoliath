@@ -4,14 +4,11 @@ sys.path.append("..")
 
 import time
 import socket
-from typing import Mapping, Union, Callable
+from typing import Union, Callable
 from queue import Queue
 from threading import Thread, Lock
-import connections.consts as consts
-import errors
-from connections.machine import Machine
-from utils import print_error, print_info
-from schema import Ping, InputState, GameState, Wireable, wire_decode
+from utils import print_error, print_success
+from schema import Ping, InputState, GameState, Machine, Wireable
 
 
 class ConnectionManager:
@@ -26,7 +23,8 @@ class ConnectionManager:
     ):
         self.identity = identity
         self.is_primary = False  # Is this the primary?
-        self.living_siblings = consts.get_other_machines(identity.name)
+        self.living_siblings: list[Machine] = []
+        self.id_map: dict[str, Machine] = {}
         self.alive = True
         self.input_sockets = {}
         self.input_lock = Lock()
@@ -78,6 +76,7 @@ class ConnectionManager:
         health_listen_thread.start()
         health_probe_thread = Thread(target=self.probe_health)
         health_probe_thread.start()
+        print_success(f"{self.identity.name} is all set!")
 
     def listen_internally(self, sock=None):
         """
@@ -100,18 +99,19 @@ class ConnectionManager:
             while listens_completed < self.identity.num_listens:
                 # Accept the input connection
                 input_conn, _ = input_sock.accept()
+                # Send the connector our identity
+                input_conn.send(self.identity.encode())
                 # Get the name of the machine that connected
-                name = input_conn.recv(2048).decode()
+                id = Machine.decode(input_conn.recv(2048))
+                self.id_map[id.name] = id
                 # Add the connection to the map
-                self.input_sockets[name] = input_conn
-                self.input_map[name] = InputState()
+                self.input_sockets[id.name] = input_conn
+                self.input_map[id.name] = InputState()
 
                 # Accept the game_state connection
                 game_conn, _ = game_sock.accept()
-                # Get the name of the machine that connected
-                name = game_conn.recv(2048).decode()
                 # Add the connection to the map
-                self.game_sockets[name] = game_conn
+                self.game_sockets[id.name] = game_conn
 
                 listens_completed += 1
             input_sock.close()
@@ -167,27 +167,28 @@ class ConnectionManager:
                 break
             time.sleep(FREQUENCY)
 
-    def connect_internally(self, name: str, sock=None):
+    def connect_internally(self, info: list[Union[str, int]], sock=None):
         """
         Connects to the machine with the given name
         NOTE: Can/is expected to sometimes throw errors
         """
-        # Get the identity of the machine to connect to
-        if name not in consts.MACHINE_MAP:
-            print_error(f"Machine {name} is not in the identity map")
-            print_error("Please recheck your configuration and try again")
-            raise (errors.MachineNotFoundException("Invalid machine name"))
-        identity = consts.MACHINE_MAP[name]
-        # Setup the socket
+        # Setup the input socket
         input_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        input_sock.connect((info[0], info[1]))
+        # Send the machine our identity
+        input_sock.send(self.identity.encode())
+        # Get the Machine obj of the machine we just connected to
+        id = Machine.decode(input_sock.recv(2048))
+        self.id_map[id.name] = id
+        # Add the connection to the map
+        self.input_sockets[id.name] = input_sock
+        self.input_map[id.name] = InputState()
+
+        # Setup the game socket
         game_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        input_sock.connect((identity.host_ip, identity.input_port))
-        input_sock.send(self.identity.name.encode())
-        game_sock.connect((identity.host_ip, identity.game_port))
-        game_sock.send(self.identity.name.encode())
-        self.input_sockets[name] = input_sock
-        self.input_map[name] = InputState()
-        self.game_sockets[name] = game_sock
+        game_sock.connect((id.host_ip, id.game_port))
+        # Add the connection to the map
+        self.game_sockets[id.name] = game_sock
 
     def consume_input(self, name, conn):
         """
@@ -231,14 +232,14 @@ class ConnectionManager:
         Handles the connections to other machines
         """
         # Connect to the machines in the connection list
-        for name in self.identity.connections:
+        for info in self.identity.connections:
             connected = False
             while not connected:
                 try:
-                    self.connect_internally(name)
+                    self.connect_internally(info)
                     connected = True
                 except Exception:
-                    print_error(f"Failed to connect to {name}, retrying in 1 second")
+                    print_error(f"Failed to connect to {info}, retrying in 1 second")
                     time.sleep(1)
 
     def is_leader(self):

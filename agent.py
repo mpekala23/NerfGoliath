@@ -1,10 +1,22 @@
+from connections.consts import BLANK_MACHINE, NEGOTIATOR_IP, NEGOTIATOR_PORT
 from connections.manager import ConnectionManager
-from connections.machine import Machine
 from game.game import Game
-from schema import KeyInput, MouseInput, Vec2, InputState, GameState, Player
+from schema import (
+    KeyInput,
+    MouseInput,
+    Vec2,
+    InputState,
+    GameState,
+    Player,
+    ConnectRequest,
+    ConnectResponse,
+    Machine,
+    wire_decode,
+)
 from threading import Thread, Lock
 import time
 import random
+import socket
 
 
 class Agent:
@@ -12,14 +24,13 @@ class Agent:
     The actual program that each player will run to participate in the game
     """
 
-    def __init__(self, machine: Machine):
-        self.identity = machine
-
+    def __init__(self, name: str):
         # Function to pass the connection manager to let it update gamestate
         def update_game_state(game_state: GameState):
             self.game_state = game_state
 
-        self.conman = ConnectionManager(machine, update_game_state)
+        self.identity: Machine = self.negotiate(name)
+        self.conman = ConnectionManager(self.identity, update_game_state)
         self.conman.initialize()
         self.key_input: KeyInput = KeyInput(False, False, False, False)
         self.mouse_input: MouseInput = MouseInput(Vec2(0, 0), False, False)
@@ -38,6 +49,31 @@ class Agent:
         self.agent_loop_thread = Thread(target=self.agent_loop)
         self.agent_loop_thread.start()
         self.game.run()
+
+    def negotiate(self, name: str) -> Machine:
+        while True:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            try:
+                sock.connect((NEGOTIATOR_IP, NEGOTIATOR_PORT))
+                sock.send(ConnectRequest(name).encode())
+                data = sock.recv(1024)
+                if not data or len(data) <= 0:
+                    raise Exception("Negotiator did not respond")
+                resp = wire_decode(data)
+                if type(resp) != ConnectResponse:
+                    raise Exception("Negotiator did not understand")
+                if not resp.success:
+                    raise Exception("Negotiator rejected connection")
+                mach_data = sock.recv(2048)
+                if not mach_data or len(mach_data) <= 0:
+                    raise Exception("Negotiator did not send machine data")
+                mach = wire_decode(mach_data)
+                if type(mach) != Machine:
+                    raise Exception("Negotiator did not send machine data")
+                return mach
+            except Exception as e:
+                pass
+            time.sleep(random.uniform(0.5, 1.0))
 
     def on_update_key(self, key_input: KeyInput):
         """
@@ -85,8 +121,8 @@ class Agent:
             time.sleep(AGENT_SLEEP)
 
 
-def create_agent(machine: Machine) -> Agent:
+def create_agent(name: str) -> Agent:
     """
     Creates an agent for a given machine
     """
-    return Agent(machine)
+    return Agent(name)

@@ -1,5 +1,21 @@
 from connections.machine import Machine
 
+NEGOTIATOR_IP = "localhost"
+NEGOTIATOR_PORT = 50051
+
+# A null machine essentially
+BLANK_MACHINE = Machine(
+    name="",
+    host_ip="",
+    input_port=0,
+    game_port=0,
+    health_port=0,
+    num_listens=0,
+    connections=[],
+)
+
+"""
+
 # Create the three identities that the machines can assume
 MACHINE_A = Machine(
     name="A",
@@ -29,7 +45,6 @@ MACHINE_MAP = {
 
 
 def get_other_machines(name: str) -> list[Machine]:
-    """
-    Returns a list of the names of all machines except the one specified
-    """
+    
     return [MACHINE_MAP[key] for key in MACHINE_MAP if key != name]
+"""
