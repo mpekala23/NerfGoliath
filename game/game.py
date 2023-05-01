@@ -13,7 +13,7 @@ from schema import KeyInput, MouseInput, Vec2, InputState, GameState, Spell
 from typing import Callable, Mapping
 import random
 
-SPELL_SPEED = 18
+SPELL_SPEED = 12
 
 
 class Game(arcade.Window):
@@ -146,6 +146,7 @@ class Game(arcade.Window):
                 state = Spell(game_state.spell_count + 1, pos, vel)
                 game_state.spells.append(state)
                 game_state.spell_count += 1
+
         # Then move all the spells
         new_spells: list[Spell] = []
         for sx in range(len(game_state.spells)):

@@ -52,9 +52,14 @@ class Agent:
         AGENT_SLEEP = 0.01
         last_input_map = self.conman.input_map
         while True:
-            input_state = InputState(self.key_input, self.mouse_input)
-            self.conman.broadcast_input(input_state)
             new_last = self.conman.input_map.copy()
+            input_state = InputState(
+                self.key_input,
+                MouseInput(
+                    self.mouse_input.pos, self.mouse_input.left, self.mouse_input.right
+                ),
+            )
+            self.conman.broadcast_input(input_state)
             if self.conman.is_leader():
                 Game.update_game_state(
                     self.game_state, self.conman.input_map, last_input_map

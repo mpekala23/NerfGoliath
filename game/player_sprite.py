@@ -10,7 +10,7 @@ from schema import Player, Vec2, KeyInput, MouseInput, InputState
 import math
 import time
 
-WIZARD_SCALING = 2.5
+WIZARD_SCALING = 1.5
 PLAYER_SPEED = 6
 CAST_SPEED = 3
 DASH_SPEED = 18
@@ -94,31 +94,37 @@ class PlayerSprite(arcade.Sprite):
         """ """
         self.center_x, self.center_y = self.state.pos.x, self.state.pos.y
         self.change_x, self.change_y = (0, 0)
+        self.update_animation()
 
     @staticmethod
-    def get_player_movement_from_inp(p_inp: KeyInput) -> Vec2:
+    def get_player_movement_from_inp(
+        key_input: KeyInput, mouse_input: MouseInput
+    ) -> Vec2:
         x = 0
         y = 0
-        if p_inp.right and not p_inp.left:
+        if key_input.right and not key_input.left:
             x = 1
-        if p_inp.left and not p_inp.right:
+        if key_input.left and not key_input.right:
             x = -1
-        if p_inp.up and not p_inp.down:
+        if key_input.up and not key_input.down:
             y = 1
-        if p_inp.down and not p_inp.up:
+        if key_input.down and not key_input.up:
             y = -1
         result = Vec2(x, y)
         result.normalize()
-        result *= PLAYER_SPEED
+        actual_speed = CAST_SPEED if mouse_input.right else PLAYER_SPEED
+        result *= actual_speed
         return result
 
     @staticmethod
     def get_new_state(old_state: Player, p_inp: InputState) -> Player:
-        new_vel = PlayerSprite.get_player_movement_from_inp(p_inp.key_input)
+        new_vel = PlayerSprite.get_player_movement_from_inp(
+            p_inp.key_input, p_inp.mouse_input
+        )
         new_pos = old_state.pos + new_vel
         new_is_alive = old_state.is_alive
         new_time_till_respawn = old_state.time_till_respawn
-        new_casting = p_inp.mouse_input.left
+        new_casting = p_inp.mouse_input.right
         new_facing = old_state.facing
         if new_casting:
             new_facing = LEFT if p_inp.mouse_input.pos.x < new_pos.x else RIGHT
