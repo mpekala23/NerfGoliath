@@ -19,7 +19,7 @@ BLANK_MACHINE = Machine(
 # Create the three identities that the machines can assume
 MACHINE_A = Machine(
     name="A",
-    host_ip="",
+    host_ip="127.0.0.1",
     input_port=50051,
     game_port=50052,
     health_port=50053,
@@ -29,7 +29,7 @@ MACHINE_A = Machine(
 
 MACHINE_B = Machine(
     name="B",
-    host_ip="",
+    host_ip="127.0.0.1",
     input_port=50061,
     game_port=50062,
     health_port=50063,

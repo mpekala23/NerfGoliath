@@ -163,13 +163,15 @@ class Spell(Wireable):
     def unique_char() -> str:
         return "s"
 
-    def __init__(self, id: int, pos: Vec2, vel: Vec2):
+    def __init__(self, id: int, pos: Vec2, ivel: Vec2, creator: int):
         self.id = id
         self.pos = pos
-        self.vel = vel
+        self.vel = ivel
+        self.creator = creator
+
 
     def __str__(self):
-        return f"Spell({self.id} {self.pos}, {self.vel})"
+        return f"Spell({self.id} {self.pos}, {self.vel}, {self.creator})"
 
     def __eq__(self, other):
         if type(other) != Spell:
@@ -177,8 +179,8 @@ class Spell(Wireable):
         return str(self) == str(other)
 
     def encode(self):
-        data = (self.id, self.pos.x, self.pos.y, self.vel.x, self.vel.y)
-        return f"{Spell.unique_char()}{data[0]}@{data[1]}@{data[2]}@{data[3]}@{data[4]}".encode()
+        data = (self.id, self.pos.x, self.pos.y, self.vel.x, self.vel.y, self.creator)
+        return f"{Spell.unique_char()}{data[0]}@{data[1]}@{data[2]}@{data[3]}@{data[4]}@{data[5]}".encode()
 
     @staticmethod
     def decode(s: bytes):
@@ -187,6 +189,7 @@ class Spell(Wireable):
             int(data[0]),
             Vec2(float(data[1]), float(data[2])),
             Vec2(float(data[3]), float(data[4])),
+            data[5],
         )
 
 

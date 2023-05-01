@@ -86,9 +86,10 @@ class PlayerSprite(arcade.Sprite):
             self.texture = self.idle_textures[self.state.facing][cur_frame]
 
         if self.is_dead():
-            if int(self.cur_texture * anim_speed) >= 4:
-                self.scale = 0
+            # if int(self.cur_texture * anim_speed) >= 4:
+            #     self.scale = 0
             self.texture = self.death_textures[self.state.facing][cur_frame]
+            self.position = Vec2(-1000, -1000)
 
     def on_update(self, delta_time):
         """ """
