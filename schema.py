@@ -163,12 +163,11 @@ class Spell(Wireable):
     def unique_char() -> str:
         return "s"
 
-    def __init__(self, id: int, pos: Vec2, ivel: Vec2, creator: int):
+    def __init__(self, id: int, pos: Vec2, ivel: Vec2, creator: str):
         self.id = id
         self.pos = pos
         self.vel = ivel
         self.creator = creator
-
 
     def __str__(self):
         return f"Spell({self.id} {self.pos}, {self.vel}, {self.creator})"
@@ -211,6 +210,7 @@ class Player(Wireable):
         time_till_respawn: float = 0,
         facing: int = consts.RIGHT,
         is_casting: bool = False,
+        is_david: bool = False,
     ):
         self.id = id
         self.pos = pos
@@ -219,9 +219,10 @@ class Player(Wireable):
         self.time_till_respawn = time_till_respawn
         self.facing = facing
         self.is_casting = is_casting
+        self.is_david = is_david
 
     def __str__(self):
-        return f"Player({self.id}, {self.pos}, {self.vel}, {self.is_alive}, {float(self.time_till_respawn)}, {int(self.facing)}, {self.is_casting})"
+        return f"Player({self.id}, {self.pos}, {self.vel}, {self.is_alive}, {float(self.time_till_respawn)}, {int(self.facing)}, {self.is_casting}, {self.is_david})"
 
     def __eq__(self, other):
         if type(other) != Player:
@@ -239,8 +240,9 @@ class Player(Wireable):
             self.time_till_respawn,
             self.facing,
             self.is_casting,
+            self.is_david,
         )
-        return f"{Player.unique_char()}{data[0]}@{data[1]}@{data[2]}@{data[3]}@{data[4]}@{data[5]}@{data[6]}@{data[7]}@{data[8]}".encode()
+        return f"{Player.unique_char()}{data[0]}@{data[1]}@{data[2]}@{data[3]}@{data[4]}@{data[5]}@{data[6]}@{data[7]}@{data[8]}@{data[9]}".encode()
 
     @staticmethod
     def decode(s: bytes):
@@ -253,6 +255,7 @@ class Player(Wireable):
             float(data[6]),
             int(data[7]),
             data[8] == "True",
+            data[9] == "True",
         )
 
 

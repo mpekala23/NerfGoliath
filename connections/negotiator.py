@@ -30,7 +30,7 @@ class Negotiator:
         sock.bind((NEGOTIATOR_IP, NEGOTIATOR_PORT))
         sock.listen()
         try:
-            while len(self.machines) < 4:
+            while len(self.machines) < 2:
                 conn, addr = sock.accept()
                 data = conn.recv(1024)
                 if not data or len(data) <= 0:

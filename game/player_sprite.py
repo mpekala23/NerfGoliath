@@ -2,15 +2,17 @@ import sys
 
 sys.path.append("..")
 
-from typing import Union
 import arcade
-from arcade import MOUSE_BUTTON_LEFT, MOUSE_BUTTON_RIGHT
-from game.consts import RIGHT, LEFT, SCREEN_WIDTH, SCREEN_HEIGHT
+from game.consts import (
+    RIGHT,
+    LEFT,
+    SCREEN_WIDTH,
+    SCREEN_HEIGHT,
+    DAVID_SCALING,
+    GOLIATH_SCALING,
+)
 from schema import Player, Vec2, KeyInput, MouseInput, InputState
-import math
-import time
 
-WIZARD_SCALING = 1.5
 PLAYER_SPEED = 6
 CAST_SPEED = 3
 DASH_SPEED = 18
@@ -19,10 +21,9 @@ DASH_COOLDOWN = 600  # In milliseconds
 
 
 class PlayerSprite(arcade.Sprite):
-    def __init__(self, name: str):
-        super().__init__(
-            "game/assets/images/wizzard_m_idle_anim_f0.png", WIZARD_SCALING
-        )
+    def __init__(self, name: str, is_you: bool):
+        super().__init__("game/assets/images/them0.png", GOLIATH_SCALING)
+        person = "you" if is_you else "them"
         self.cur_texture = 0
         self.run_textures = {
             RIGHT: [],
@@ -30,10 +31,10 @@ class PlayerSprite(arcade.Sprite):
         }
         for i in range(4):
             right_texture = arcade.load_texture(
-                f"game/assets/images/wizzard_m_anim_f{i}.png",
+                f"game/assets/images/{person}_run{i}.png",
             )
             left_texture = arcade.load_texture(
-                f"game/assets/images/wizzard_m_anim_f{i}.png",
+                f"game/assets/images/{person}_run{i}.png",
                 flipped_horizontally=True,
             )
             self.run_textures[RIGHT].append(right_texture)
@@ -44,10 +45,10 @@ class PlayerSprite(arcade.Sprite):
         }
         for i in range(4):
             right_texture = arcade.load_texture(
-                f"game/assets/images/wizzard_m_anim_f{i}.png",
+                f"game/assets/images/{person}_run{i // 2}.png",
             )
             left_texture = arcade.load_texture(
-                f"game/assets/images/wizzard_m_anim_f{i}.png",
+                f"game/assets/images/{person}_run{i // 2}.png",
                 flipped_horizontally=True,
             )
             self.idle_textures[RIGHT].append(right_texture)
@@ -65,7 +66,7 @@ class PlayerSprite(arcade.Sprite):
             self.death_textures[LEFT].append(left_texture)
 
         self.state = Player(name, Vec2(0, 0), Vec2(0, 0))
-        self.scale = WIZARD_SCALING
+        self.scale = GOLIATH_SCALING
 
     def is_dead(self):
         return self.state.time_till_respawn > 0
@@ -74,6 +75,7 @@ class PlayerSprite(arcade.Sprite):
         self.cur_texture = 0
 
     def update_animation(self, delta_time: float = 1 / 60):
+        self.scale = DAVID_SCALING if self.state.is_david else GOLIATH_SCALING
         anim_speed = 0.1
         self.cur_texture += 1
         cur_frame = int(self.cur_texture * anim_speed) % 4
@@ -89,12 +91,13 @@ class PlayerSprite(arcade.Sprite):
             # if int(self.cur_texture * anim_speed) >= 4:
             #     self.scale = 0
             self.texture = self.death_textures[self.state.facing][cur_frame]
-            self.position = Vec2(-1000, -1000)
+            self.center_x, self.center_y = -1000, -1000
 
     def on_update(self, delta_time):
         """ """
         self.center_x, self.center_y = self.state.pos.x, self.state.pos.y
         self.change_x, self.change_y = (0, 0)
+        self.state.pos += self.state.vel
         self.update_animation()
 
     @staticmethod
@@ -122,7 +125,7 @@ class PlayerSprite(arcade.Sprite):
         new_vel = PlayerSprite.get_player_movement_from_inp(
             p_inp.key_input, p_inp.mouse_input
         )
-        new_pos = old_state.pos + new_vel
+        new_pos = old_state.pos
         new_pos.x = min(SCREEN_WIDTH, max(0, new_pos.x))
         new_pos.y = min(SCREEN_HEIGHT, max(0, new_pos.y))
         new_is_alive = old_state.is_alive

@@ -32,6 +32,7 @@ class Game(arcade.Window):
         screen_name: str,
         on_update_key: Callable[[KeyInput], None],
         on_update_mouse: Callable[[MouseInput], None],
+        my_name: str,
     ):
         # Use the library
         super().__init__(consts.SCREEN_WIDTH, consts.SCREEN_HEIGHT, screen_name)
@@ -60,16 +61,17 @@ class Game(arcade.Window):
         # NOTE: Has to be done like this to prevent thread rendering issues
         self.spell_kill_list: list[SpellSprite] = []
         self.spell_kill_lock = Lock()
+        self.my_name = my_name
 
     def setup_for_players(self, player_names: list[str]):
         self.player_list.clear()
         self.spell_list.clear()
         for player_name in player_names:
-            new_player = PlayerSprite(player_name)
+            new_player = PlayerSprite(player_name, is_you=player_name == self.my_name)
             self.player_list.append(new_player)
         # No idea why, but if the sprite list ever becomes empty it bugs out
         # Need to always have this offscreen sprite in it
-        dummy_spell = Spell(2, Vec2(-100, -100), Vec2(0, 0), "test")
+        dummy_spell = Spell(2, Vec2(-1000, -1000), Vec2(0, 0), "test")
         dummy_sprite = SpellSprite(dummy_spell)
         self.spell_list.append(dummy_sprite)
 
@@ -140,24 +142,22 @@ class Game(arcade.Window):
 
     @staticmethod
     def update_game_state(
-        game_state: GameState,
-        input_map: Mapping[str, InputState],
-        last_input_map: Mapping[str, InputState],
+        game_state: GameState, input_map: Mapping[str, InputState], david: str
     ):
         """
         Does the work of updating all the game state
         NOTE: Modifies game_state directly
         """
-        # First handle player input and movement
+        # First handle player input
         for px in range(len(game_state.players)):
             # First update the player's position and such
             old_player = game_state.players[px]
             p_inp = input_map[old_player.id]
             new_player = PlayerSprite.get_new_state(old_player, p_inp)
+            new_player.is_david = new_player.id == david
             game_state.players[px] = new_player
             # Then see what spells we need to spawn
-            old_p_inp = last_input_map[old_player.id]
-            if old_p_inp.mouse_input.right and not p_inp.mouse_input.right:
+            if old_player.is_casting and not new_player.is_casting:
                 speed = (
                     SPELL_SPEED_MIN + p_inp.mouse_input.rheld_for * SPELL_SPEED_SCALING
                 )
@@ -175,9 +175,7 @@ class Game(arcade.Window):
         new_spells: list[Spell] = []
         for sx in range(len(game_state.spells)):
             old_spell = game_state.spells[sx]
-            new_spell = Spell(
-                old_spell.id, old_spell.pos + old_spell.vel, old_spell.vel, old_spell.creator
-            )
+            new_spell = SpellSprite.get_new_state(old_spell)
             if (
                 new_spell.pos.x >= 0
                 and new_spell.pos.x < consts.SCREEN_WIDTH
@@ -188,22 +186,28 @@ class Game(arcade.Window):
         game_state.spells = new_spells
 
         # Then handle collisions
-
         for player in game_state.players:
             for spell in game_state.spells:
                 if player.id == spell.creator:
                     continue
-                elif (player.pos.x - spell.pos.x)**2 + (player.pos.y - spell.pos.y)**2 < 48**2 and player.is_alive:
-                    player.time_till_respawn = 300
+                dist_sq = (player.pos.x - spell.pos.x) ** 2 + (
+                    player.pos.y - 4 - spell.pos.y
+                ) ** 2
+                radius = 16 * (
+                    consts.DAVID_SCALING if player.is_david else consts.GOLIATH_SCALING
+                )
+                if dist_sq < radius**2:
+                    player.time_till_respawn = 200
                     player.is_alive = False
                     spell.pos.y = -1000
+                    spell.pos.x = -1000
             if player.time_till_respawn > 0:
                 player.time_till_respawn -= 1
             if player.time_till_respawn == 1:
                 player.is_alive = True
                 player.pos.x = random.randint(0, consts.SCREEN_WIDTH)
                 player.pos.y = random.randint(0, consts.SCREEN_HEIGHT)
-        
+
     def take_game_state(self, game_state: GameState):
         """
         This function implements the logic needed by non-leader games to simply update

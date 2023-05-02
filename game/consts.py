@@ -25,3 +25,7 @@ def get_speed(diff):
 
 # Stuff to prevent import circles
 SPELL_LIVE_FOR = 500  # In milliseconds
+
+
+DAVID_SCALING = 1.0
+GOLIATH_SCALING = 2.0

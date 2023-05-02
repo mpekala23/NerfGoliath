@@ -21,20 +21,20 @@ def run_local_game():
     pNeg = Process(target=create_negotiator)
     pA = Process(target=create_agent, args=(("A",)))
     pB = Process(target=create_agent, args=(("B",)))
-    pC = Process(target=create_agent, args=(("C",)))
-    pD = Process(target=create_agent, args=(("D",)))
+    # pC = Process(target=create_agent, args=(("C",)))
+    # pD = Process(target=create_agent, args=(("D",)))
 
     pNeg.start()
     pA.start()
     pB.start()
-    pC.start()
-    pD.start()
+    # pC.start()
+    # pD.start()
 
     pNeg.join()
     pA.join()
     pB.join()
-    pC.join()
-    pD.join()
+    # pC.join()
+    # pD.join()
 
 
 if __name__ == "__main__":

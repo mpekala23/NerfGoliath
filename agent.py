@@ -34,7 +34,12 @@ class Agent:
         self.conman.initialize()
         self.key_input: KeyInput = KeyInput(False, False, False, False)
         self.mouse_input: MouseInput = MouseInput(Vec2(0, 0), False, False)
-        self.game = Game(self.identity.name, self.on_update_key, self.on_update_mouse)
+        self.game = Game(
+            self.identity.name,
+            self.on_update_key,
+            self.on_update_mouse,
+            self.identity.name,
+        )
         self.game.activate()
         # Note that because the rendering must happen on the main thread, this spins up
         # another thread which will be doing the updates
@@ -89,8 +94,8 @@ class Agent:
             self.mouse_input = mouse_input
 
     def agent_loop(self):
-        AGENT_SLEEP = 0.01
-        last_input_map = self.conman.input_map
+        FPS = 45
+        AGENT_SLEEP = 1.0 / FPS
         while True:
             with self.input_lock:
                 input_state = InputState(
@@ -107,16 +112,17 @@ class Agent:
                 )
                 if self.conman.is_leader():
                     Game.update_game_state(
-                        self.game_state, self.conman.input_map, last_input_map
+                        self.game_state,
+                        self.conman.input_map,
+                        david=self.identity.name,
                     )
-                    if random.randint(0, 1000) == 0:
+                    if random.randint(0, 500) == 0:
                         self.game_state.next_leader = (
                             "B" if self.game_state.next_leader == "A" else "A"
                         )
                         print("SWITCH OCCURED")
 
                     self.conman.broadcast_game_state(self.game_state)
-                last_input_map = self.conman.input_map.copy()
                 self.game.take_game_state(self.game_state)
             time.sleep(AGENT_SLEEP)
 
