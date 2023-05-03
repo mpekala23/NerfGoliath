@@ -18,6 +18,7 @@ import time
 import random
 import socket
 from game.consts import SCREEN_WIDTH, SCREEN_HEIGHT
+import sys
 
 
 class Agent:
@@ -145,6 +146,6 @@ def create_agent(name: str) -> Agent:
     """
     return Agent(name)
 
+
 if __name__ == "__main__":
-    name = input("Enter a name:")
-    create_agent(name)
+    create_agent(sys.argv[1])
