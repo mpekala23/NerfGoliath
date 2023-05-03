@@ -153,8 +153,10 @@ class Watcher:
         """
         Watches a machine
         """
+        print("HERE")
         conn = self.socket_map[name]
         while not self.dead:
+            print("about to receive")
             data = conn.recv(1024)
             if not data or len(data) <= 0:
                 break
