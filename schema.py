@@ -589,6 +589,37 @@ class StartCommand(Wireable):
         return StartCommand()
 
 
+class Event(Wireable):
+    """
+    A class that monitors the types of messages sent in our system
+    """
+
+    @staticmethod
+    def unique_char():
+        return "e"
+
+    def __init__(self, event_type: str, source: str, sink: str):
+        self.event_type = event_type
+        self.source = source
+        self.sink = sink
+
+    def __str__(self):
+        return f"Event({self.event_type}, {self.source}, {self.sink})"
+
+    def __eq__(self, other):
+        if type(other) != Event:
+            return False
+        return str(self) == str(other)
+
+    def encode(self):
+        return f"{Event.unique_char()}{self.event_type}@{self.source}@{self.sink}#".encode()
+
+    @staticmethod
+    def decode(s: bytes):
+        data = (s.decode())[1:].split("@")
+        return Event(data[0], data[1], data[2])
+
+
 WIREABLE_CLASSES = [
     Ping,
     Vec2,
@@ -602,6 +633,7 @@ WIREABLE_CLASSES = [
     ConnectResponse,
     Machine,
     StartCommand,
+    Event,
 ]
 
 

@@ -3,6 +3,9 @@ from connections.machine import Machine
 NEGOTIATOR_IP = "localhost"
 NEGOTIATOR_PORT = 50051
 
+WATCHER_IP = "localhost"
+WATCHER_PORT = 50052
+
 # A null machine essentially
 BLANK_MACHINE = Machine(
     name="",

@@ -62,6 +62,7 @@ class Game(arcade.Window):
         self.spell_kill_list: list[SpellSprite] = []
         self.spell_kill_lock = Lock()
         self.my_name = my_name
+        self.last_game_state: Union[GameState, None] = None
 
     def setup_for_players(self, player_names: list[str]):
         self.player_list.clear()
@@ -139,6 +140,19 @@ class Game(arcade.Window):
         self.clear()
         self.camera.use()
         self.scene.draw()
+        # Draw the score above the player
+        if self.last_game_state != None:
+            for player in self.last_game_state.players:
+                if not player.is_alive:
+                    continue
+                arcade.draw_text(
+                    f"{player.score}",
+                    player.pos.x,
+                    player.pos.y + 25,
+                    (255, 255, 255),
+                    14,
+                    font_name="Kenney Pixel Square",
+                )
 
     @staticmethod
     def update_game_state(
@@ -159,7 +173,11 @@ class Game(arcade.Window):
             new_player.is_david = new_player.id == david
             game_state.players[px] = new_player
             # Then see what spells we need to spawn
-            if old_player.is_casting and not new_player.is_casting:
+            if (
+                old_player.is_casting
+                and not new_player.is_casting
+                and new_player.is_alive
+            ):
                 speed = (
                     SPELL_SPEED_MIN + p_inp.mouse_input.rheld_for * SPELL_SPEED_SCALING
                 )
@@ -199,14 +217,16 @@ class Game(arcade.Window):
                     consts.DAVID_SCALING if player.is_david else consts.GOLIATH_SCALING
                 )
                 if dist_sq < radius**2 and player.is_alive:
-                    player.time_till_respawn = 200
+                    player.time_till_respawn = 40
                     player.is_alive = False
                     spell.pos.y = -1000
                     spell.pos.x = -1000
                     for p in game_state.players:
                         if p.id == spell.creator:
                             p.score += 1
-                            print(f"Player {player.id} was hit by {p.id}'s spell! {p.id} Score: {p.score}")
+                            print(
+                                f"Player {player.id} was hit by {p.id}'s spell! {p.id} Score: {p.score}"
+                            )
             if player.time_till_respawn > 0:
                 player.time_till_respawn -= 1
             if player.time_till_respawn == 1:
@@ -249,3 +269,5 @@ class Game(arcade.Window):
                 continue
             new_sprite = SpellSprite(spell)
             self.spell_list.append(new_sprite)
+
+        self.last_game_state = game_state

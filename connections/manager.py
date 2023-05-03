@@ -8,7 +8,21 @@ from typing import Union, Callable
 from queue import Queue
 from threading import Thread, Lock
 from utils import print_error, print_success
-from schema import Ping, InputState, GameState, Machine, Wireable
+from schema import (
+    Ping,
+    InputState,
+    GameState,
+    Machine,
+    Wireable,
+    ConnectRequest,
+    ConnectResponse,
+    wire_decode,
+    Event,
+)
+from connections.consts import WATCHER_IP, WATCHER_PORT
+import random
+
+TICKS_PER_WATCH = 20
 
 
 class ConnectionManager:
@@ -26,6 +40,7 @@ class ConnectionManager:
         self.living_siblings: list[Machine] = []
         self.id_map: dict[str, Machine] = {}
         self.alive = True
+        self.watcher_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.input_sockets = {}
         self.input_map_lock = Lock()
         self.input_map = {self.identity.name: InputState()}
@@ -34,11 +49,16 @@ class ConnectionManager:
         self.leader_name: Union[str, None] = "A"
         self.wires_received: Queue[Wireable] = Queue()
         self.update_game_state = update_game_state
+        self.input_ticks = 0
+        self.game_state_ticks = 0
 
     def initialize(self):
         """
         Does blocking work to establish connections to peers
         """
+        # Zeroth it should connect to the watcher
+        self.connect_to_watcher()
+
         # First it should establish connections to all other internal machines
         listen_thread = Thread(target=self.listen_internally)
         connect_thread = Thread(target=self.handle_internal_connections)
@@ -77,6 +97,45 @@ class ConnectionManager:
         health_probe_thread = Thread(target=self.probe_health)
         health_probe_thread.start()
         print_success(f"{self.identity.name} is all set!")
+
+    def connect_to_watcher(self):
+        """
+        Connects to the watcher
+        """
+        connected = False
+        while not connected:
+            try:
+                self.watcher_sock.connect((WATCHER_IP, WATCHER_PORT))
+                self.watcher_sock.send(ConnectRequest(self.identity.name).encode())
+                data = self.watcher_sock.recv(1024)
+                if not data or len(data) <= 0:
+                    raise Exception("Negotiator did not respond")
+                resp = wire_decode(data)
+                if type(resp) != ConnectResponse:
+                    raise Exception("Negotiator did not understand")
+                if not resp.success:
+                    raise Exception("Negotiator rejected connection")
+                connected = True
+            except:
+                print_error("Could not connect to watcher, retrying...")
+                time.sleep(1)
+
+    def log_event(self, event: Event):
+        """
+        Logs an event to the watcher
+        """
+        if event.event_type == "input":
+            self.input_ticks = (
+                self.input_ticks + random.randint(0, 2)
+            ) % TICKS_PER_WATCH
+            if self.input_ticks == 0:
+                self.watcher_sock.send(event.encode())
+        if event.event_type == "game":
+            self.game_state_ticks = (
+                self.game_state_ticks + random.randint(0, 2)
+            ) % TICKS_PER_WATCH
+            if self.game_state_ticks == 0:
+                self.watcher_sock.send(event.encode())
 
     def listen_internally(self, sock=None):
         """
@@ -240,7 +299,7 @@ class ConnectionManager:
                     connected = True
                 except Exception:
                     print_error(f"Failed to connect to {info}, retrying in 1 second")
-                    time.sleep(1)
+                    time.sleep(random.random())
 
     def is_leader(self):
         """
@@ -252,13 +311,15 @@ class ConnectionManager:
         """
         Broadcasts this machine's input state to all other machines in the system
         """
-        # TODO: For efficiency only do this broadcast on changes
+        event = Event("input", self.identity.name, "delta")
         with self.input_map_lock:
             self.input_map[self.identity.name] = input_state
             for name in self.input_sockets:
                 self.input_sockets[name].send(
                     self.input_map[self.identity.name].encode()
                 )
+                event.sink = name
+                self.log_event(event)
 
     def broadcast_game_state(self, game_state: GameState):
         """
@@ -269,6 +330,7 @@ class ConnectionManager:
         self.leader_name = game_state.next_leader
         for name in self.game_sockets:
             self.game_sockets[name].send(game_state.encode())
+            self.log_event(Event("game", self.identity.name, name))
 
     def kill(self):
         """

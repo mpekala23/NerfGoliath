@@ -17,6 +17,7 @@ from threading import Thread, Lock
 import time
 import random
 import socket
+from game.consts import SCREEN_WIDTH, SCREEN_HEIGHT
 
 
 class Agent:
@@ -45,7 +46,17 @@ class Agent:
         # another thread which will be doing the updates
         self.game_state = GameState(
             "A",
-            [Player(name, Vec2(0, 0), Vec2(0, 0)) for name in self.conman.input_map],
+            [
+                Player(
+                    name,
+                    Vec2(
+                        random.randint(0, SCREEN_WIDTH),
+                        random.randint(0, SCREEN_HEIGHT),
+                    ),
+                    Vec2(0, 0),
+                )
+                for name in self.conman.input_map
+            ],
             [],
         )
         # Makes sure we don't double create projectiles
@@ -118,12 +129,10 @@ class Agent:
                         self.conman.input_map,
                         david=self.identity.name,
                     )
-                    if random.randint(0, 250) == 9:
-                        # self.game_state.next_leader = (
-                        #     "B" if self.game_state.next_leader == "A" else "A"
-                        # )
-                        self.game_state.next_leader = min(self.game_state.players, key=lambda p: p.score).id
-                        print(f"SWITCH OCCURED: {self.game_state.next_leader}")
+
+                    self.game_state.next_leader = min(
+                        self.game_state.players, key=lambda p: p.score
+                    ).id
 
                     self.conman.broadcast_game_state(self.game_state)
             self.game.take_game_state(self.game_state)
