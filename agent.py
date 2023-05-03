@@ -119,10 +119,11 @@ class Agent:
                         david=self.identity.name,
                     )
                     if random.randint(0, 250) == 9:
-                        self.game_state.next_leader = (
-                            "B" if self.game_state.next_leader == "A" else "A"
-                        )
-                        print("SWITCH OCCURED")
+                        # self.game_state.next_leader = (
+                        #     "B" if self.game_state.next_leader == "A" else "A"
+                        # )
+                        self.game_state.next_leader = min(self.game_state.players, key=lambda p: p.score).id
+                        print(f"SWITCH OCCURED: {self.game_state.next_leader}")
 
                     self.conman.broadcast_game_state(self.game_state)
             self.game.take_game_state(self.game_state)
