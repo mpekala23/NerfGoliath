@@ -30,7 +30,7 @@ class Negotiator:
         sock.bind((NEGOTIATOR_IP, NEGOTIATOR_PORT))
         sock.listen()
         try:
-            while len(self.machines) < 2:
+            while len(self.machines) < 3:
                 conn, addr = sock.accept()
                 data = conn.recv(1024)
                 if not data or len(data) <= 0:
@@ -65,7 +65,6 @@ class Negotiator:
                 conn.send(ConnectResponse(True).encode())
         except Exception as e:
             sock.close()
-        print("Negotiation finished")
         # All players have connected, tell them their identity
         for mach in self.machines:
             conn = self.socket_map[mach.name]

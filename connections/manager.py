@@ -27,7 +27,7 @@ class ConnectionManager:
         self.id_map: dict[str, Machine] = {}
         self.alive = True
         self.input_sockets = {}
-        self.input_lock = Lock()
+        self.input_map_lock = Lock()
         self.input_map = {self.identity.name: InputState()}
         self.game_sockets = {}
         self.leader_lock = Lock()
@@ -202,7 +202,7 @@ class ConnectionManager:
                 if not msg or len(msg) <= 0:
                     raise Exception("Connection closed")
                 state = InputState.decode(msg)
-                with self.input_lock:
+                with self.input_map_lock:
                     self.input_map[name] = state
         except Exception:
             conn.close()
@@ -253,7 +253,7 @@ class ConnectionManager:
         Broadcasts this machine's input state to all other machines in the system
         """
         # TODO: For efficiency only do this broadcast on changes
-        with self.input_lock:
+        with self.input_map_lock:
             self.input_map[self.identity.name] = input_state
             for name in self.input_sockets:
                 self.input_sockets[name].send(
@@ -263,12 +263,12 @@ class ConnectionManager:
     def broadcast_game_state(self, game_state: GameState):
         """
         Can only be called when this agent is the leader.
-        Broadcasts the new game state to all players involved
+        Assumes that the leader lock is already held
         """
         assert self.is_leader()
-        with self.leader_lock:
-            for name in self.game_sockets:
-                self.game_sockets[name].send(game_state.encode())
+        self.leader_name = game_state.next_leader
+        for name in self.game_sockets:
+            self.game_sockets[name].send(game_state.encode())
 
     def kill(self):
         """

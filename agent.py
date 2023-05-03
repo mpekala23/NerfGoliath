@@ -84,7 +84,8 @@ class Agent:
         """
         Handy setter to allow the game to update the key input via callback
         """
-        self.key_input = key_input
+        with self.input_lock:
+            self.key_input = key_input
 
     def on_update_mouse(self, mouse_input: MouseInput):
         """
@@ -105,25 +106,26 @@ class Agent:
                         self.mouse_input.left,
                         self.mouse_input.right,
                         self.mouse_input.rheld_for,
-                    ),
+                    ),  # Copy to avoid mutability errors
                 )
-                self.conman.broadcast_input(
-                    input_state,
-                )
+            self.conman.broadcast_input(
+                input_state,
+            )
+            with self.conman.leader_lock:
                 if self.conman.is_leader():
                     Game.update_game_state(
                         self.game_state,
                         self.conman.input_map,
                         david=self.identity.name,
                     )
-                    if random.randint(0, 500) == 0:
+                    if random.randint(0, 250) == 9:
                         self.game_state.next_leader = (
                             "B" if self.game_state.next_leader == "A" else "A"
                         )
                         print("SWITCH OCCURED")
 
                     self.conman.broadcast_game_state(self.game_state)
-                self.game.take_game_state(self.game_state)
+            self.game.take_game_state(self.game_state)
             time.sleep(AGENT_SLEEP)
 
 
