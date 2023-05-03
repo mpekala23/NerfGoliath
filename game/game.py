@@ -198,7 +198,7 @@ class Game(arcade.Window):
                 radius = 16 * (
                     consts.DAVID_SCALING if player.is_david else consts.GOLIATH_SCALING
                 )
-                if dist_sq < radius**2:
+                if dist_sq < radius**2 and player.is_alive:
                     player.time_till_respawn = 200
                     player.is_alive = False
                     spell.pos.y = -1000
