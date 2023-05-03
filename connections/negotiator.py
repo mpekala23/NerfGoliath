@@ -78,3 +78,7 @@ def create_negotiator():
     """
     negotiator = Negotiator()
     negotiator.negotiate()
+
+
+if __name__ == "__main__":
+    create_negotiator()

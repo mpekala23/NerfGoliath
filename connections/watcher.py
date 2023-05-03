@@ -178,3 +178,7 @@ def create_watcher():
     """
     watcher = Watcher()
     watcher.start()
+
+
+if __name__ == "__main__":
+    create_watcher()
