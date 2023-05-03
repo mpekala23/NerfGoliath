@@ -101,6 +101,7 @@ class Watcher:
         self.socket_map: dict[str, socket.socket] = {}
         self.events: Queue[Event] = Queue()
         self.dead = False
+        self.display = Display()
 
     def start(self):
         """
@@ -108,8 +109,6 @@ class Watcher:
         """
         watch_thread = Thread(target=self.watch)
         watch_thread.start()
-        display = Display()
-        self.display = display
         arcade.run()
 
     def watch(self):
@@ -123,9 +122,8 @@ class Watcher:
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         sock.bind((WATCHER_IP, WATCHER_PORT))
         sock.listen()
-        while True:
+        while not self.dead:
             try:
-                print("Waiting for connection")
                 conn, addr = sock.accept()
                 data = conn.recv(1024)
                 if not data or len(data) <= 0:
@@ -134,7 +132,8 @@ class Watcher:
                 if type(req) != ConnectRequest:
                     continue
                 print_success(f"{req.name} being watched")
-                self.display.add_player(req.name)
+                if self.display != None:
+                    self.display.add_player(req.name)
                 self.socket_map[req.name] = conn
                 job_thread = Thread(target=self.watch_job, args=(req.name,))
                 job_thread.start()
@@ -143,6 +142,7 @@ class Watcher:
             except Exception as e:
                 sock.close()
                 sock.listen()
+                self.dead = True
                 break
         self.dead = True
 
@@ -170,8 +170,11 @@ class Watcher:
         Spam looks through the queue to handle events
         """
         while not self.dead:
-            event = self.events.get()
-            self.display.spawn_ball(event)
+            try:
+                event = self.events.get(False, 2)
+                self.display.spawn_ball(event)
+            except:
+                pass
 
 
 def create_watcher():

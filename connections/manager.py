@@ -105,6 +105,7 @@ class ConnectionManager:
         connected = False
         while not connected:
             try:
+                self.watcher_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 self.watcher_sock.connect((WATCHER_IP, WATCHER_PORT))
                 self.watcher_sock.send(ConnectRequest(self.identity.name).encode())
                 data = self.watcher_sock.recv(1024)
