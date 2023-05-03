@@ -7,6 +7,8 @@ from schema import ConnectRequest, ConnectResponse, Machine, wire_decode
 from connections.consts import NEGOTIATOR_IP, NEGOTIATOR_PORT
 from utils import print_success
 
+NUM_PLAYERS = 2
+
 
 class Negotiator:
     """
@@ -30,7 +32,7 @@ class Negotiator:
         sock.bind((NEGOTIATOR_IP, NEGOTIATOR_PORT))
         sock.listen()
         try:
-            while len(self.machines) < 3:
+            while len(self.machines) < NUM_PLAYERS:
                 conn, addr = sock.accept()
                 data = conn.recv(1024)
                 if not data or len(data) <= 0:

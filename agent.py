@@ -144,3 +144,7 @@ def create_agent(name: str) -> Agent:
     Creates an agent for a given machine
     """
     return Agent(name)
+
+if __name__ == "__main__":
+    name = input("Enter a name:")
+    create_agent(name)

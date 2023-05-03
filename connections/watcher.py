@@ -100,6 +100,7 @@ class Watcher:
     def __init__(self):
         self.socket_map: dict[str, socket.socket] = {}
         self.events: Queue[Event] = Queue()
+        self.dead = False
 
     def start(self):
         """
@@ -143,13 +144,14 @@ class Watcher:
                 sock.close()
                 sock.listen()
                 break
+        self.dead = True
 
     def watch_job(self, name: str):
         """
         Watches a machine
         """
         conn = self.socket_map[name]
-        while True:
+        while not self.dead:
             data = conn.recv(1024)
             if not data or len(data) <= 0:
                 break
@@ -167,7 +169,7 @@ class Watcher:
         """
         Spam looks through the queue to handle events
         """
-        while True:
+        while not self.dead:
             event = self.events.get()
             self.display.spawn_ball(event)
 
