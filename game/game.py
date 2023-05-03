@@ -151,6 +151,8 @@ class Game(arcade.Window):
         # First handle player input
         for px in range(len(game_state.players)):
             # First update the player's position and such
+            if not game_state.players[px].is_alive:
+                continue
             old_player = game_state.players[px]
             p_inp = input_map[old_player.id]
             new_player = PlayerSprite.get_new_state(old_player, p_inp)
@@ -201,6 +203,10 @@ class Game(arcade.Window):
                     player.is_alive = False
                     spell.pos.y = -1000
                     spell.pos.x = -1000
+                    for p in game_state.players:
+                        if p.id == spell.creator:
+                            p.score += 1
+                            print(f"Player {player.id} was hit by {p.id}'s spell! {p.id} Score: {p.score}")
             if player.time_till_respawn > 0:
                 player.time_till_respawn -= 1
             if player.time_till_respawn == 1:

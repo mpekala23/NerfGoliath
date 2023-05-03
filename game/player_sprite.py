@@ -144,4 +144,5 @@ class PlayerSprite(arcade.Sprite):
             new_time_till_respawn,
             new_facing,
             new_casting,
+            score = old_state.score,
         )

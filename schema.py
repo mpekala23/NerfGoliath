@@ -211,6 +211,7 @@ class Player(Wireable):
         facing: int = consts.RIGHT,
         is_casting: bool = False,
         is_david: bool = False,
+        score: int = 0,
     ):
         self.id = id
         self.pos = pos
@@ -220,9 +221,10 @@ class Player(Wireable):
         self.facing = facing
         self.is_casting = is_casting
         self.is_david = is_david
+        self.score = score
 
     def __str__(self):
-        return f"Player({self.id}, {self.pos}, {self.vel}, {self.is_alive}, {float(self.time_till_respawn)}, {int(self.facing)}, {self.is_casting}, {self.is_david})"
+        return f"Player({self.id}, {self.pos}, {self.vel}, {self.is_alive}, {float(self.time_till_respawn)}, {int(self.facing)}, {self.is_casting}, {self.is_david}, {self.score})"
 
     def __eq__(self, other):
         if type(other) != Player:
@@ -241,8 +243,9 @@ class Player(Wireable):
             self.facing,
             self.is_casting,
             self.is_david,
+            self.score,
         )
-        return f"{Player.unique_char()}{data[0]}@{data[1]}@{data[2]}@{data[3]}@{data[4]}@{data[5]}@{data[6]}@{data[7]}@{data[8]}@{data[9]}".encode()
+        return f"{Player.unique_char()}{data[0]}@{data[1]}@{data[2]}@{data[3]}@{data[4]}@{data[5]}@{data[6]}@{data[7]}@{data[8]}@{data[9]}@{data[10]}".encode()
 
     @staticmethod
     def decode(s: bytes):
@@ -256,6 +259,7 @@ class Player(Wireable):
             int(data[7]),
             data[8] == "True",
             data[9] == "True",
+            int(data[10]),
         )
 
 
