@@ -107,8 +107,7 @@ class Watcher:
         """
         Starts the watcher server
         """
-        watch_thread = Thread(target=self.watch)
-        watch_thread.start()
+        self.watch()
         arcade.run()
 
     def watch(self):
@@ -122,7 +121,9 @@ class Watcher:
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         sock.bind((WATCHER_IP, WATCHER_PORT))
         sock.listen()
-        while not self.dead:
+        count = 0
+        while count < 2:
+            print("here")
             try:
                 conn, addr = sock.accept()
                 data = conn.recv(1024)
@@ -132,18 +133,20 @@ class Watcher:
                 if type(req) != ConnectRequest:
                     continue
                 print_success(f"{req.name} being watched")
-                if self.display != None:
-                    self.display.add_player(req.name)
+                self.display.add_player(req.name)
                 self.socket_map[req.name] = conn
                 job_thread = Thread(target=self.watch_job, args=(req.name,))
                 job_thread.start()
                 # Let the machine know that it has been connected
                 conn.send(ConnectResponse(True).encode())
+                count += 1
+            except KeyboardInterrupt:
+                sock.close()
+                self.dead = True
+                break
             except Exception as e:
                 sock.close()
                 sock.listen()
-                self.dead = True
-                break
         self.dead = True
 
     def watch_job(self, name: str):
@@ -171,8 +174,11 @@ class Watcher:
         """
         while not self.dead:
             try:
-                event = self.events.get(False, 2)
+                event = self.events.get(False, 5)
+                print(event)
                 self.display.spawn_ball(event)
+            except KeyboardInterrupt:
+                break
             except:
                 pass
 

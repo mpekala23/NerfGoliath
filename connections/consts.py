@@ -1,9 +1,9 @@
 from connections.machine import Machine
 
-NEGOTIATOR_IP = "localhost"
+NEGOTIATOR_IP = "10.250.155.180"
 NEGOTIATOR_PORT = 50051
 
-WATCHER_IP = "localhost"
+WATCHER_IP = "10.250.155.180"
 WATCHER_PORT = 50052
 
 # A null machine essentially
