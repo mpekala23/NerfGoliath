@@ -224,9 +224,6 @@ class Game(arcade.Window):
                     for p in game_state.players:
                         if p.id == spell.creator:
                             p.score += 1
-                            print(
-                                f"Player {player.id} was hit by {p.id}'s spell! {p.id} Score: {p.score}"
-                            )
             if player.time_till_respawn > 0:
                 player.time_till_respawn -= 1
             if player.time_till_respawn == 1:

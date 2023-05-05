@@ -27,6 +27,8 @@ class Agent:
     """
 
     def __init__(self, name: str):
+        self.alive = True
+
         # Function to pass the connection manager to let it update gamestate
         def update_game_state(game_state: GameState):
             self.game_state = game_state
@@ -75,7 +77,7 @@ class Agent:
         """
         Connect to the negotiator to get a machine id to play the game
         """
-        while True:
+        while self.alive:
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             try:
                 sock.connect((NEGOTIATOR_IP, NEGOTIATOR_PORT))
@@ -98,6 +100,7 @@ class Agent:
             except Exception as e:
                 pass
             time.sleep(random.uniform(0.5, 1.0))
+        raise Exception("Can't negotiate")
 
     def on_update_key(self, key_input: KeyInput):
         """
@@ -116,7 +119,7 @@ class Agent:
     def agent_loop(self):
         FPS = 45
         AGENT_SLEEP = 1.0 / FPS
-        while True:
+        while self.alive:
             with self.input_lock:
                 input_state = InputState(
                     self.key_input,
@@ -146,12 +149,21 @@ class Agent:
             self.game.take_game_state(self.game_state)
             time.sleep(AGENT_SLEEP)
 
+    def kill(self):
+        self.conman.kill()
+        self.alive = False
 
-def create_agent(name: str) -> Agent:
+
+def create_agent(name: str):
     """
     Creates an agent for a given machine
     """
-    return Agent(name)
+    agent = False
+    try:
+        agent = Agent(name)
+    except:
+        if agent:
+            agent.kill()
 
 
 if __name__ == "__main__":
