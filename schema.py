@@ -387,8 +387,19 @@ class GameState(Wireable):
             if len(spell) <= 0:
                 continue
             spells.append(Spell.decode(spell.encode()))
-        spell_count = int(data[3])
+        spell_count = int(float(data[3]))
         return GameState(next_leader, players, spells, spell_count)
+
+    def get_worst(self) -> str:
+        lowest = (1000, "Z")
+        for player in self.players:
+            if (
+                player.score < lowest[0]
+                or player.score == lowest[0]
+                and player.id < lowest[1]
+            ):
+                lowest = (player.score, player.id)
+        return lowest[1]
 
 
 class KeyInput(Wireable):

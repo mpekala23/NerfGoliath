@@ -264,6 +264,7 @@ class ConnectionManager:
                     self.update_game_state(state)
                     self.leader_name = state.next_leader
             except errors.InvalidMessage:
+                print("invalid message")
                 continue
             except errors.CommsDied:
                 # TODO: Mark the death, deal with it elsewhere
@@ -307,7 +308,7 @@ class ConnectionManager:
         assert self.is_leader()
         self.leader_name = game_state.next_leader
         for name in self.game_sockets:
-            self.game_sockets[name].send(game_state.encode())
+            self.game_sockets[name].sendall(game_state.encode())
             self.log_event(Event("game", self.identity.name, name))
 
     def kill(self):

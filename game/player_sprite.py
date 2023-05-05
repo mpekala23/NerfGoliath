@@ -78,7 +78,7 @@ class PlayerSprite(arcade.Sprite):
         self.scale = DAVID_SCALING if self.state.is_david else GOLIATH_SCALING
         anim_speed = 0.1
         self.cur_texture += 1
-        cur_frame = int(self.cur_texture * anim_speed) % 4
+        cur_frame = int(float(self.cur_texture * anim_speed)) % 4
 
         if self.state.vel.x != 0 or self.state.vel.y != 0:
             # Player is moving

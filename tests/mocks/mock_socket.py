@@ -60,3 +60,6 @@ class socket:
 
     def send(self, bs: bytes):
         self.sent.append(bs)
+
+    def sendall(self, bs: bytes):
+        pass
