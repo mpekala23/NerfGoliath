@@ -3,6 +3,7 @@ import math
 import errors
 import json
 from typing import Union
+from enum import Enum
 
 
 class Wireable:
@@ -39,6 +40,64 @@ class Ping(Wireable):
     @staticmethod
     def decode(_) -> "Ping":
         return Ping()
+
+
+class CommsRequest(Wireable):
+    """
+    A message that requests a connection to another player. It must specify the person
+    who is connecting's name, as well as what kind of communication they need.
+    Valid comms types are:
+    - "input" for sending input updates
+    - "game" for sending game state updates
+    - "watcher" for sending log data to the watcher
+    - "health" for sending health checks
+    """
+
+    @staticmethod
+    def unique_char() -> str:
+        return "1"
+
+    def __init__(self, name: str, info: list[str | int], comms_type: str):
+        self.name = name
+        self.info = info
+        self.comms_type = comms_type
+
+    def __str__(self):
+        return f"CommsRequest({self.name}, {self.info}, {self.comms_type})"
+
+    def encode(self):
+        return f"{CommsRequest.unique_char()}{self.name}@{self.info[0]}@{self.info[1]}@{self.comms_type}".encode()
+
+    @staticmethod
+    def decode(s: bytes) -> "CommsRequest":
+        data = (s.decode())[1:].split("@")
+        return CommsRequest(data[0], [data[1], int(data[2])], data[3])
+
+
+class CommsResponse(Wireable):
+    """
+    A message that responds to a connection request. It must specify the person
+    who is responding, as well as whether the connection was accepted
+    """
+
+    @staticmethod
+    def unique_char() -> str:
+        return "2"
+
+    def __init__(self, name: str, accepted: bool):
+        self.name = name
+        self.accepted = accepted
+
+    def __str__(self):
+        return f"CommsResponse({self.name}, {self.accepted})"
+
+    def encode(self):
+        return f"{CommsResponse.unique_char()}{self.name}@{self.accepted}".encode()
+
+    @staticmethod
+    def decode(s: bytes) -> "CommsResponse":
+        data = (s.decode())[1:].split("@")
+        return CommsResponse(data[0], data[1] == "True")
 
 
 class Vec2(Wireable):
@@ -476,11 +535,12 @@ class ConnectResponse(Wireable):
     def unique_char():
         return "r"
 
-    def __init__(self, success: bool):
+    def __init__(self, success: bool, is_leader: bool = False):
         self.success = success
+        self.is_leader = is_leader
 
     def __str__(self):
-        return f"ConnectResponse({self.success})"
+        return f"ConnectResponse({self.success}, {self.is_leader})"
 
     def __eq__(self, other):
         if type(other) != ConnectResponse:
@@ -488,12 +548,14 @@ class ConnectResponse(Wireable):
         return str(self) == str(other)
 
     def encode(self):
-        return f"{ConnectResponse.unique_char()}{self.success}".encode()
+        return (
+            f"{ConnectResponse.unique_char()}{self.success}@{self.is_leader}".encode()
+        )
 
     @staticmethod
     def decode(s: bytes):
-        data = (s.decode())[1:]
-        return ConnectResponse(data == "True")
+        data = (s.decode())[1:].split("@")
+        return ConnectResponse(data[0] == "True", data[1] == "True")
 
 
 class Machine(Wireable):
@@ -512,29 +574,20 @@ class Machine(Wireable):
         self,
         name: str,
         host_ip: str,
-        input_port: int,
-        game_port: int,
-        health_port: int,
-        num_listens: int,
+        port: int,
         connections: list[list[Union[str, int]]],
     ) -> None:
         # The name of the machine
         self.name = name
         # The ip address the machine should listen on for new connections
         self.host_ip = host_ip
-        # A dedicated port to just receive players input as it changes
-        self.input_port = input_port
-        # The most interesting port, where game state is sent and transitions can happen
-        self.game_port = game_port
-        # The port the machine should listen on for health checks
-        self.health_port = health_port
-        # The number of connections the machine should listen for
-        self.num_listens = num_listens
+        # The port that the machine should accept new connections on
+        self.port = port
         # The names of the machines that this machine should connect to
         self.connections = connections
 
     def __str__(self):
-        return f"Machine({self.name}, {self.host_ip}, {self.input_port}, {self.game_port}, {self.health_port}, {self.num_listens}, {self.connections})"
+        return f"Machine({self.name}, {self.host_ip}, {self.port}, {self.connections})"
 
     def __eq__(self, other):
         if type(other) != Machine:
@@ -553,10 +606,7 @@ class Machine(Wireable):
         return Machine(
             asJson["name"],
             asJson["host_ip"],
-            asJson["input_port"],
-            asJson["game_port"],
-            asJson["health_port"],
-            asJson["num_listens"],
+            asJson["port"],
             asJson["connections"],
         )
 
@@ -622,6 +672,8 @@ class Event(Wireable):
 
 WIREABLE_CLASSES = [
     Ping,
+    CommsRequest,
+    CommsResponse,
     Vec2,
     Spell,
     Player,

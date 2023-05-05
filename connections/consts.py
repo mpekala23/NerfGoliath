@@ -1,10 +1,16 @@
 from connections.machine import Machine
 
+# How players will connect to the game, through a coordinating server
 NEGOTIATOR_IP = "10.250.155.180"
 NEGOTIATOR_PORT = 50051
 
+# How we will monitor stats about the game, through a passive "watching" server
 WATCHER_IP = "10.250.155.180"
 WATCHER_PORT = 50052
+
+# Broadcasting state every tick is to much for the watcher to handle, so we throttle it
+# by essentially choosing to monitor roughly every 20th tick (throw in some randomness)
+TICKS_PER_WATCH = 20
 
 # A null machine essentially
 BLANK_MACHINE = Machine(
@@ -16,38 +22,3 @@ BLANK_MACHINE = Machine(
     num_listens=0,
     connections=[],
 )
-
-"""
-
-# Create the three identities that the machines can assume
-MACHINE_A = Machine(
-    name="A",
-    host_ip="127.0.0.1",
-    input_port=50051,
-    game_port=50052,
-    health_port=50053,
-    num_listens=1,
-    connections=[],
-)
-
-MACHINE_B = Machine(
-    name="B",
-    host_ip="127.0.0.1",
-    input_port=50061,
-    game_port=50062,
-    health_port=50063,
-    num_listens=0,
-    connections=["A"],
-)
-
-# Create a mapping from machine name to information about it
-MACHINE_MAP = {
-    "A": MACHINE_A,
-    "B": MACHINE_B,
-}
-
-
-def get_other_machines(name: str) -> list[Machine]:
-    
-    return [MACHINE_MAP[key] for key in MACHINE_MAP if key != name]
-"""

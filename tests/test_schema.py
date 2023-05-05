@@ -21,7 +21,7 @@ from schema import (
     wire_decode,
 )
 
-SPELL = Spell(1, Vec2(1, 2), Vec2(3, 4))
+SPELL = Spell(1, Vec2(1, 2), Vec2(3, 4), "creator")
 PLAYER = Player("test", Vec2(1, 2), Vec2(3, 4))
 GAME_STATE = GameState("test", [PLAYER], [SPELL], 3)
 KEY_INPUT = KeyInput(True, True, False, True)
@@ -30,7 +30,7 @@ INPUT_STATE = InputState(KEY_INPUT, MOUSE_INPUT)
 
 CONNECT_REQUEST = ConnectRequest("test")
 CONNECT_RESPONSE = ConnectResponse(True)
-MACHINE = Machine("test", "127.0.0.1", 1, 2, 3, 4, [["127.0.0.2", 1]])
+MACHINE = Machine("test", "127.0.0.1", 1, [["127.0.0.2", 1]])
 
 
 def test_Vec2_encode_decode():

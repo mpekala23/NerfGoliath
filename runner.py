@@ -3,6 +3,7 @@ from multiprocessing import Process
 from agent import create_agent
 from connections.negotiator import create_negotiator
 from connections.watcher import create_watcher
+from game.consts import NUM_PLAYERS
 
 """
 def old_run_local_game():
@@ -20,24 +21,21 @@ def old_run_local_game():
 def run_local_game():
     pNeg = Process(target=create_negotiator)
     pWat = Process(target=create_watcher)
-    pA = Process(target=create_agent, args=(("A",)))
-    pB = Process(target=create_agent, args=(("B",)))
-    pC = Process(target=create_agent, args=(("C",)))
-    # pD = Process(target=create_agent, args=(("D",)))
+    names = "ABCDEFG"
+    player_procs = []
+    for name in names[:NUM_PLAYERS]:
+        proc = Process(target=create_agent, args=((name,)))
+        player_procs.append(proc)
 
     pNeg.start()
     pWat.start()
-    pA.start()
-    pB.start()
-    pC.start()
-    # pD.start()
+    for proc in player_procs:
+        proc.start()
 
     pNeg.join()
     pWat.join()
-    pA.join()
-    pB.join()
-    pC.join()
-    # pD.join()
+    for proc in player_procs:
+        proc.join()
 
 
 if __name__ == "__main__":

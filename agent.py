@@ -31,8 +31,8 @@ class Agent:
         def update_game_state(game_state: GameState):
             self.game_state = game_state
 
-        self.identity: Machine = self.negotiate(name)
-        self.conman = ConnectionManager(self.identity, update_game_state)
+        (self.identity, am_leader) = self.negotiate(name)
+        self.conman = ConnectionManager(self.identity, update_game_state, am_leader)
         self.conman.initialize()
         self.key_input: KeyInput = KeyInput(False, False, False, False)
         self.mouse_input: MouseInput = MouseInput(Vec2(0, 0), False, False)
@@ -46,7 +46,7 @@ class Agent:
         # Note that because the rendering must happen on the main thread, this spins up
         # another thread which will be doing the updates
         self.game_state = GameState(
-            "A",
+            "",
             [
                 Player(
                     name,
@@ -56,18 +56,25 @@ class Agent:
                     ),
                     Vec2(0, 0),
                 )
-                for name in self.conman.input_map
+                for name in (
+                    list(self.conman.input_sockets.keys()) + [self.identity.name]
+                )
             ],
             [],
         )
         # Makes sure we don't double create projectiles
         self.input_lock = Lock()
-        self.game.setup_for_players([name for name in self.conman.input_map])
+        self.game.setup_for_players(
+            [name for name in self.conman.input_sockets] + [self.identity.name]
+        )
         self.agent_loop_thread = Thread(target=self.agent_loop)
         self.agent_loop_thread.start()
         self.game.run()
 
-    def negotiate(self, name: str) -> Machine:
+    def negotiate(self, name: str) -> tuple[Machine, bool]:
+        """
+        Connect to the negotiator to get a machine id to play the game
+        """
         while True:
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             try:
@@ -87,7 +94,7 @@ class Agent:
                 mach = wire_decode(mach_data)
                 if type(mach) != Machine:
                     raise Exception("Negotiator did not send machine data")
-                return mach
+                return (mach, resp.is_leader)
             except Exception as e:
                 pass
             time.sleep(random.uniform(0.5, 1.0))

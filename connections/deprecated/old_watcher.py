@@ -4,13 +4,14 @@ sys.path.append("..")
 
 import arcade
 import socket
-from schema import CommsRequest, CommsResponse, Machine, wire_decode, Event, Vec2
+from schema import ConnectRequest, ConnectResponse, Machine, wire_decode, Event, Vec2
 from connections.consts import WATCHER_IP, WATCHER_PORT
 from utils import print_success
 from threading import Thread
 from queue import Queue
 from game import consts as gconsts
 import math
+import random
 
 
 class Display(arcade.Window):
@@ -121,14 +122,15 @@ class Watcher:
         sock.bind((WATCHER_IP, WATCHER_PORT))
         sock.listen()
         count = 0
-        while count < gconsts.NUM_PLAYERS:
+        while count < 2:
+            print("here")
             try:
                 conn, addr = sock.accept()
                 data = conn.recv(1024)
                 if not data or len(data) <= 0:
                     continue
                 req = wire_decode(data)
-                if type(req) != CommsRequest:
+                if type(req) != ConnectRequest:
                     continue
                 print_success(f"{req.name} being watched")
                 self.display.add_player(req.name)
@@ -136,7 +138,7 @@ class Watcher:
                 job_thread = Thread(target=self.watch_job, args=(req.name,))
                 job_thread.start()
                 # Let the machine know that it has been connected
-                conn.send(CommsResponse("watcher", True).encode())
+                conn.send(ConnectResponse(True).encode())
                 count += 1
             except KeyboardInterrupt:
                 sock.close()
@@ -144,9 +146,6 @@ class Watcher:
                 break
             except Exception as e:
                 sock.close()
-                sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-                sock.bind((WATCHER_IP, WATCHER_PORT))
                 sock.listen()
         self.dead = True
 
@@ -154,8 +153,10 @@ class Watcher:
         """
         Watches a machine
         """
+        print("HERE")
         conn = self.socket_map[name]
         while not self.dead:
+            print("about to receive")
             data = conn.recv(1024)
             if not data or len(data) <= 0:
                 break

@@ -5,8 +5,9 @@ sys.path.append("..")
 import socket
 from schema import ConnectRequest, ConnectResponse, Machine, wire_decode
 from connections.consts import NEGOTIATOR_IP, NEGOTIATOR_PORT
-from game.consts import NUM_PLAYERS
 from utils import print_success
+
+NUM_PLAYERS = 2
 
 
 class Negotiator:
@@ -43,22 +44,27 @@ class Negotiator:
                     conn.send(ConnectResponse(False).encode())
                     continue
                 print_success(f"{req.name} accepted!")
+                # First increment the number of listens of all existing machines
+                for mach in self.machines:
+                    mach.num_listens += 1
+                # Now make the new machine and add it to the list
                 new_mach = Machine(
                     name=req.name,
                     host_ip=addr[0],
-                    port=self.port_num,
+                    input_port=self.port_num,
+                    game_port=self.port_num + 1,
+                    health_port=self.port_num + 2,
+                    num_listens=0,
                     connections=[
-                        [exist_mach.host_ip, exist_mach.port]
+                        [exist_mach.host_ip, exist_mach.input_port]
                         for exist_mach in self.machines
                     ],
                 )
-                self.port_num += 1
+                self.port_num += 3
                 self.machines.append(new_mach)
                 self.socket_map[req.name] = conn
                 # Let the machine know that it has been connected
-                conn.send(
-                    ConnectResponse(True, is_leader=len(self.machines) == 1).encode()
-                )
+                conn.send(ConnectResponse(True).encode())
         except Exception as e:
             sock.close()
         # All players have connected, tell them their identity
