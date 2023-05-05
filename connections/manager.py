@@ -25,7 +25,7 @@ from connections.consts import WATCHER_IP, WATCHER_PORT, TICKS_PER_WATCH
 import random
 import errors
 import tests.mocks.mock_socket as mock_socket
-from game.consts import NUM_PLAYERS
+from game.consts import NUM_PLAYERS, FPS
 
 
 class ConnectionManager:
@@ -55,6 +55,7 @@ class ConnectionManager:
         # Maps machine name to place to go for reconnection
         self.reconnect_map: dict[str, list[str | int]] = {}
         self.watcher_ticks: dict[str, int] = {"input": 0, "game": 0}
+        self.last_inp_broadcast = time.time()  # Rate limit our broadcasts
 
     def register_connection(
         self, conn: Union[socket.socket, mock_socket.socket], req: CommsRequest, to: str
@@ -103,7 +104,6 @@ class ConnectionManager:
                 # FIRST: Receive the request from the other player
                 data = conn.recv(2048)
                 if not data or len(data) == 0:
-                    print("data is", data)
                     print_error("ERROR: Can't get comms req")
                     conn.close()
                     continue
@@ -202,7 +202,7 @@ class ConnectionManager:
             self.watcher_ticks["input"] = (
                 self.watcher_ticks["input"] + random.randint(0, 2)
             ) % TICKS_PER_WATCH
-            if self.watcher_ticks["input"] == 0:
+            if self.watcher_ticks["input"] <= 2:
                 self.watcher_sock.send(event.encode())
         if event.event_type == "game":
             self.watcher_ticks["game"] = (
@@ -277,8 +277,12 @@ class ConnectionManager:
         """
         Broadcasts this machine's input state to all other machines in the system
         """
-        event = Event("input", self.identity.name, "delta")
         with self.input_map_lock:
+            diff = 1.0 / FPS
+            if time.time() - self.last_inp_broadcast < diff:
+                return
+            self.last_inp_broadcast = time.time()
+            event = Event("input", self.identity.name, "delta")
             self.input_map[self.identity.name] = input_state
             for name in self.input_sockets:
                 self.input_sockets[name].send(

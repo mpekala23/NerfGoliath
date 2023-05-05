@@ -168,6 +168,8 @@ class Game(arcade.Window):
             if not game_state.players[px].is_alive:
                 continue
             old_player = game_state.players[px]
+            if not old_player.id in input_map:
+                continue
             p_inp = input_map[old_player.id]
             new_player = PlayerSprite.get_new_state(old_player, p_inp)
             new_player.is_david = new_player.id == david

@@ -17,8 +17,9 @@ from threading import Thread, Lock
 import time
 import random
 import socket
-from game.consts import SCREEN_WIDTH, SCREEN_HEIGHT
+from game.consts import SCREEN_WIDTH, SCREEN_HEIGHT, FPS
 import sys
+import arcade
 
 
 class Agent:
@@ -108,6 +109,10 @@ class Agent:
         """
         with self.input_lock:
             self.key_input = key_input
+            input_state = InputState(self.key_input, self.mouse_input)
+            self.conman.broadcast_input(
+                input_state,
+            )
 
     def on_update_mouse(self, mouse_input: MouseInput):
         """
@@ -115,24 +120,14 @@ class Agent:
         """
         with self.input_lock:
             self.mouse_input = mouse_input
-
-    def agent_loop(self):
-        FPS = 45
-        AGENT_SLEEP = 1.0 / FPS
-        while self.alive:
-            with self.input_lock:
-                input_state = InputState(
-                    self.key_input,
-                    MouseInput(
-                        self.mouse_input.pos,
-                        self.mouse_input.left,
-                        self.mouse_input.right,
-                        self.mouse_input.rheld_for,
-                    ),  # Copy to avoid mutability errors
-                )
+            input_state = InputState(self.key_input, self.mouse_input)
             self.conman.broadcast_input(
                 input_state,
             )
+
+    def agent_loop(self):
+        AGENT_SLEEP = 1.0 / FPS
+        while self.alive:
             with self.conman.leader_lock:
                 if self.conman.is_leader():
                     Game.update_game_state(
@@ -162,8 +157,10 @@ def create_agent(name: str):
     try:
         agent = Agent(name)
     except:
-        if agent:
-            agent.kill()
+        pass
+    if agent:
+        agent.kill()
+    arcade.exit()
 
 
 if __name__ == "__main__":

@@ -5,6 +5,8 @@ import json
 from typing import Union
 from enum import Enum
 
+DELIM = "$"
+
 
 class Wireable:
     def __repr__(self):
@@ -35,7 +37,7 @@ class Ping(Wireable):
         return "Ping()"
 
     def encode(self):
-        return f"{Ping.unique_char()}".encode()
+        return f"{Ping.unique_char()}{DELIM}".encode()
 
     @staticmethod
     def decode(_) -> "Ping":
@@ -66,7 +68,7 @@ class CommsRequest(Wireable):
         return f"CommsRequest({self.name}, {self.info}, {self.comms_type})"
 
     def encode(self):
-        return f"{CommsRequest.unique_char()}{self.name}@{self.info[0]}@{self.info[1]}@{self.comms_type}".encode()
+        return f"{CommsRequest.unique_char()}{self.name}@{self.info[0]}@{self.info[1]}@{self.comms_type}{DELIM}".encode()
 
     @staticmethod
     def decode(s: bytes) -> "CommsRequest":
@@ -92,7 +94,9 @@ class CommsResponse(Wireable):
         return f"CommsResponse({self.name}, {self.accepted})"
 
     def encode(self):
-        return f"{CommsResponse.unique_char()}{self.name}@{self.accepted}".encode()
+        return (
+            f"{CommsResponse.unique_char()}{self.name}@{self.accepted}{DELIM}".encode()
+        )
 
     @staticmethod
     def decode(s: bytes) -> "CommsResponse":
@@ -124,7 +128,7 @@ class Vec2(Wireable):
 
     def encode(self):
         data = (self.x, self.y)
-        return f"{Vec2.unique_char()}{data[0]}@{data[1]}".encode()
+        return f"{Vec2.unique_char()}{data[0]}@{data[1]}{DELIM}".encode()
 
     @staticmethod
     def decode(s: bytes) -> "Vec2":
@@ -238,7 +242,7 @@ class Spell(Wireable):
 
     def encode(self):
         data = (self.id, self.pos.x, self.pos.y, self.vel.x, self.vel.y, self.creator)
-        return f"{Spell.unique_char()}{data[0]}@{data[1]}@{data[2]}@{data[3]}@{data[4]}@{data[5]}".encode()
+        return f"{Spell.unique_char()}{data[0]}@{data[1]}@{data[2]}@{data[3]}@{data[4]}@{data[5]}{DELIM}".encode()
 
     @staticmethod
     def decode(s: bytes):
@@ -304,7 +308,7 @@ class Player(Wireable):
             self.is_david,
             self.score,
         )
-        return f"{Player.unique_char()}{data[0]}@{data[1]}@{data[2]}@{data[3]}@{data[4]}@{data[5]}@{data[6]}@{data[7]}@{data[8]}@{data[9]}@{data[10]}".encode()
+        return f"{Player.unique_char()}{data[0]}@{data[1]}@{data[2]}@{data[3]}@{data[4]}@{data[5]}@{data[6]}@{data[7]}@{data[8]}@{data[9]}@{data[10]}{DELIM}".encode()
 
     @staticmethod
     def decode(s: bytes):
@@ -354,10 +358,10 @@ class GameState(Wireable):
     def encode(self):
         player_encodings = []
         for player in self.players:
-            player_encodings.append(str(player.encode())[2:-1])
+            player_encodings.append(str(player.encode())[2:-2])
         spell_encodings = []
         for spell in self.spells:
-            spell_encodings.append(str(spell.encode())[2:-1])
+            spell_encodings.append(str(spell.encode())[2:-2])
         result = GameState.unique_char()
         result += f"{self.next_leader}"
         result += "#"
@@ -366,6 +370,7 @@ class GameState(Wireable):
         result += f"{','.join(spell_encodings)}"
         result += "#"
         result += f"{self.spell_count}"
+        result += DELIM
         return result.encode()
 
     @staticmethod
@@ -411,9 +416,7 @@ class KeyInput(Wireable):
 
     def encode(self):
         data = (self.left, self.right, self.up, self.down)
-        return (
-            f"{KeyInput.unique_char()}{data[0]}@{data[1]}@{data[2]}@{data[3]}".encode()
-        )
+        return f"{KeyInput.unique_char()}{data[0]}@{data[1]}@{data[2]}@{data[3]}{DELIM}".encode()
 
     @staticmethod
     def decode(s: bytes):
@@ -448,7 +451,7 @@ class MouseInput(Wireable):
 
     def encode(self):
         data = (self.pos.x, self.pos.y, self.left, self.right, self.rheld_for)
-        return f"{MouseInput.unique_char()}{data[0]}@{data[1]}@{data[2]}@{data[3]}@{data[4]}".encode()
+        return f"{MouseInput.unique_char()}{data[0]}@{data[1]}@{data[2]}@{data[3]}@{data[4]}{DELIM}".encode()
 
     @staticmethod
     def decode(s: bytes):
@@ -487,7 +490,7 @@ class InputState(Wireable):
         return str(self) == str(other)
 
     def encode(self):
-        return f"{InputState.unique_char()}{self.key_input.encode().decode()}#{self.mouse_input.encode().decode()}".encode()
+        return f"{InputState.unique_char()}{self.key_input.encode().decode()[:-1]}#{self.mouse_input.encode().decode()[:-1]}{DELIM}".encode()
 
     @staticmethod
     def decode(s: bytes):
@@ -518,7 +521,7 @@ class ConnectRequest(Wireable):
         return str(self) == str(other)
 
     def encode(self):
-        return f"{ConnectRequest.unique_char()}{self.name}".encode()
+        return f"{ConnectRequest.unique_char()}{self.name}{DELIM}".encode()
 
     @staticmethod
     def decode(s: bytes):
@@ -548,9 +551,7 @@ class ConnectResponse(Wireable):
         return str(self) == str(other)
 
     def encode(self):
-        return (
-            f"{ConnectResponse.unique_char()}{self.success}@{self.is_leader}".encode()
-        )
+        return f"{ConnectResponse.unique_char()}{self.success}@{self.is_leader}{DELIM}".encode()
 
     @staticmethod
     def decode(s: bytes):
@@ -598,7 +599,7 @@ class Machine(Wireable):
         return json.dumps(self, default=lambda o: o.__dict__)
 
     def encode(self):
-        return (self.unique_char() + self.toJson()).encode()
+        return (self.unique_char() + self.toJson() + DELIM).encode()
 
     @staticmethod
     def decode(s: bytes):
@@ -609,34 +610,6 @@ class Machine(Wireable):
             asJson["port"],
             asJson["connections"],
         )
-
-
-class StartCommand(Wireable):
-    """
-    A command that tells the game to start
-    """
-
-    @staticmethod
-    def unique_char():
-        return "x"
-
-    def __init__(self):
-        pass
-
-    def __str__(self):
-        return f"StartCommand()"
-
-    def __eq__(self, other):
-        if type(other) != StartCommand:
-            return False
-        return str(self) == str(other)
-
-    def encode(self):
-        return f"{StartCommand.unique_char()}".encode()
-
-    @staticmethod
-    def decode(s: bytes):
-        return StartCommand()
 
 
 class Event(Wireable):
@@ -662,7 +635,7 @@ class Event(Wireable):
         return str(self) == str(other)
 
     def encode(self):
-        return f"{Event.unique_char()}{self.event_type}@{self.source}@{self.sink}#".encode()
+        return f"{Event.unique_char()}{self.event_type}@{self.source}@{self.sink}{DELIM}".encode()
 
     @staticmethod
     def decode(s: bytes):
@@ -684,12 +657,15 @@ WIREABLE_CLASSES = [
     ConnectRequest,
     ConnectResponse,
     Machine,
-    StartCommand,
     Event,
 ]
 
 
 def wire_decode(s: bytes):
+    arr = s.decode().split(DELIM)
+    if len(arr) == 0:
+        raise errors.InvalidMessage(f"Invalid message")
+    s = arr[0].encode()
     if len(s) > 0:
         for cls in WIREABLE_CLASSES:
             if s.decode()[0] == cls.unique_char():

@@ -10,7 +10,7 @@ WATCHER_PORT = 50052
 
 # Broadcasting state every tick is to much for the watcher to handle, so we throttle it
 # by essentially choosing to monitor roughly every 20th tick (throw in some randomness)
-TICKS_PER_WATCH = 20
+TICKS_PER_WATCH = 30
 
 # A null machine essentially
 BLANK_MACHINE = Machine(

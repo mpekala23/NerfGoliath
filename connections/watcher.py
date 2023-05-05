@@ -191,8 +191,10 @@ def create_watcher():
         watcher = Watcher()
         watcher.start()
     except:
-        if watcher:
-            watcher.dead = True
+        pass
+    if watcher:
+        watcher.dead = True
+        arcade.exit()
 
 
 if __name__ == "__main__":
