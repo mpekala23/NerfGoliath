@@ -199,7 +199,7 @@ class ConnectionManager:
         Logs an event to the watcher
         """
         if event.event_type == "input":
-            self.tick = (
+            self.watcher_ticks["input"] = (
                 self.watcher_ticks["input"] + random.randint(0, 2)
             ) % TICKS_PER_WATCH
             if self.watcher_ticks["input"] == 0:

@@ -148,7 +148,6 @@ class Watcher:
                 sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
                 sock.bind((WATCHER_IP, WATCHER_PORT))
                 sock.listen()
-        self.dead = True
 
     def watch_job(self, name: str):
         """
@@ -175,8 +174,7 @@ class Watcher:
         """
         while not self.dead:
             try:
-                event = self.events.get(False, 5)
-                print(event)
+                event = self.events.get(True, 5)
                 self.display.spawn_ball(event)
             except KeyboardInterrupt:
                 break
@@ -188,8 +186,13 @@ def create_watcher():
     """
     Creates a negotiator and starts it
     """
-    watcher = Watcher()
-    watcher.start()
+    watcher = False
+    try:
+        watcher = Watcher()
+        watcher.start()
+    except:
+        if watcher:
+            watcher.dead = True
 
 
 if __name__ == "__main__":
