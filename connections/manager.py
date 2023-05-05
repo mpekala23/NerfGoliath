@@ -21,7 +21,14 @@ from schema import (
     wire_decode,
     Event,
 )
-from connections.consts import WATCHER_IP, WATCHER_PORT, TICKS_PER_WATCH
+from connections.consts import (
+    WATCHER_IP,
+    WATCHER_PORT,
+    TICKS_PER_WATCH,
+    ALIVE,
+    DEAD,
+    SUS,
+)
 import random
 import errors
 import tests.mocks.mock_socket as mock_socket
@@ -52,6 +59,7 @@ class ConnectionManager:
         self.leader_lock = Lock()
         self.leader_name: Union[str, None] = self.identity.name if is_leader else None
         self.health_sockets: dict[str, Union[socket.socket, mock_socket.socket]] = {}
+        self.health_map: dict[str, int] = {}
         # Maps machine name to place to go for reconnection
         self.reconnect_map: dict[str, list[str | int]] = {}
         self.watcher_ticks: dict[str, int] = {"input": 0, "game": 0}

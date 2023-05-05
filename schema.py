@@ -248,7 +248,7 @@ class Spell(Wireable):
     def decode(s: bytes):
         data = (s.decode())[1:].split("@")
         return Spell(
-            int(data[0]),
+            int(float(data[0])),
             Vec2(float(data[1]), float(data[2])),
             Vec2(float(data[3]), float(data[4])),
             data[5],
@@ -319,10 +319,10 @@ class Player(Wireable):
             Vec2(float(data[3]), float(data[4])),
             data[5] == "True",
             float(data[6]),
-            int(data[7]),
+            int(float(data[7])),
             data[8] == "True",
             data[9] == "True",
-            int(data[10]),
+            int(float(data[10])),
         )
 
 

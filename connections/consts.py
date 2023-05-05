@@ -22,3 +22,7 @@ BLANK_MACHINE = Machine(
     num_listens=0,
     connections=[],
 )
+
+ALIVE = 0
+SUS = 1
+DEAD = 2
