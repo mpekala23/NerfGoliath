@@ -64,6 +64,7 @@ class ConnectionManager:
         self.reconnect_map: dict[str, list[str | int]] = {}
         self.watcher_ticks: dict[str, int] = {"input": 0, "game": 0}
         self.last_inp_broadcast = time.time()  # Rate limit our broadcasts
+        self.need_to_hear_from: Union[str, None] = None
 
     def register_connection(
         self, conn: Union[socket.socket, mock_socket.socket], req: CommsRequest, to: str
@@ -261,19 +262,17 @@ class ConnectionManager:
                         self.leader_name = state.next_leader
                     if name != self.leader_name:
                         continue
+                    if name == self.need_to_hear_from:
+                        self.need_to_hear_from = None
                     self.update_game_state(state)
                     self.leader_name = state.next_leader
             except errors.InvalidMessage:
-                print("invalid message")
                 continue
             except errors.CommsDied:
                 # TODO: Mark the death, deal with it elsewhere
                 break
             except Exception as e:
-                print_error(
-                    f"ERROR: consume_game_state died for unknown reason {e.args}"
-                )
-                break
+                continue
         conn.close()
 
     def is_leader(self):
@@ -281,6 +280,13 @@ class ConnectionManager:
         Helper function that makes leader-dependent actions more readable
         """
         return self.leader_name == self.identity.name
+
+    def should_backup_broadcast(self):
+        """
+        Helper function to determine if this agent should broadcast because
+        they were recently the leader but haven't yet heard from the new leader
+        """
+        return self.need_to_hear_from != None
 
     def broadcast_input(self, input_state: InputState):
         """
@@ -302,10 +308,16 @@ class ConnectionManager:
 
     def broadcast_game_state(self, game_state: GameState):
         """
-        Can only be called when this agent is the leader.
         Assumes that the leader lock is already held
+        Called when this identity is the leader OR the are waiting to hear
+        back from the new leader
         """
-        assert self.is_leader()
+        if (
+            self.leader_name == self.identity
+            and game_state.next_leader != self.leader_name
+        ):
+            # A change is coming
+            self.need_to_hear_from = game_state.next_leader
         self.leader_name = game_state.next_leader
         for name in self.game_sockets:
             self.game_sockets[name].sendall(game_state.encode())

@@ -21,8 +21,6 @@ from game.consts import SCREEN_WIDTH, SCREEN_HEIGHT, FPS
 import sys
 import arcade
 
-REDUNDANCY = FPS
-
 
 class Agent:
     """
@@ -67,7 +65,6 @@ class Agent:
             ],
             [],
         )
-        self.redundancy_countdown = 0
         # Makes sure we don't double create projectiles
         self.input_lock = Lock()
         self.game.setup_for_players(
@@ -133,7 +130,6 @@ class Agent:
         while self.alive:
             with self.conman.leader_lock:
                 if self.conman.is_leader():
-                    self.redundancy_countdown = REDUNDANCY
                     Game.update_game_state(
                         self.game_state,
                         self.conman.input_map,
@@ -144,9 +140,8 @@ class Agent:
                     self.game_state.next_leader = worst
 
                     self.conman.broadcast_game_state(self.game_state)
-                elif self.redundancy_countdown > 0:
+                elif self.conman.should_backup_broadcast():
                     self.conman.broadcast_game_state(self.game_state)
-                    self.redundancy_countdown -= 1
             self.game.take_game_state(self.game_state)
             time.sleep(AGENT_SLEEP)
 
