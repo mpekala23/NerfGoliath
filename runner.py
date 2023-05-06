@@ -1,3 +1,4 @@
+import time
 from connections import consts
 from multiprocessing import Process
 from agent import create_agent
@@ -31,6 +32,10 @@ def run_local_game():
     pWat.start()
     for proc in player_procs:
         proc.start()
+
+    time.sleep(60)
+    for proc in player_procs:
+        proc.terminate()
 
     pNeg.join()
     pWat.join()

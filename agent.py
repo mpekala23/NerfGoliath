@@ -1,4 +1,9 @@
-from connections.consts import BLANK_MACHINE, NEGOTIATOR_IP, NEGOTIATOR_PORT
+from connections.consts import (
+    NEGOTIATOR_IP,
+    NEGOTIATOR_PORT,
+    SIMULATED_DROP,
+    SIMULATED_LAG,
+)
 from connections.manager import ConnectionManager
 from game.game import Game
 from schema import (
@@ -34,9 +39,22 @@ class Agent:
 
         # Function to pass the connection manager to let it update gamestate
         def update_game_state(game_state: GameState):
+            id_to_player_map = {player.id: player for player in game_state.players}
+            jolt = 0
+            for player in self.game_state.players:
+                new_player = id_to_player_map[player.id]
+                if not player.is_alive or not new_player.is_alive:
+                    continue
+                diff = new_player.pos - player.pos
+                jolt += diff.x**2 + diff.y**2
+
+            self.fout.write(f"{time.time()},{jolt}\n")
+            if random.randint(0, 10) == 0:
+                self.fout.flush()
             self.game_state = game_state
 
-        self.fout = open(f"output/{name}.txt", "w")
+        self.fout = open(f"output/{name}.csv", "w")
+        self.fout.write("time,jolt\n")
         self.ai = ai
         (self.identity, am_leader) = self.negotiate(name)
         self.conman = ConnectionManager(self.identity, update_game_state, am_leader)
@@ -151,7 +169,7 @@ class Agent:
                     self.conman.broadcast_game_state(self.game_state)
             self.game.take_game_state(self.game_state)
 
-            if self.ai != None and random.randint(0, 6) == 0:
+            if self.ai != None and random.randint(0, 3) == 0:
                 next_input = self.ai.get_move(self.game_state)
                 self.on_update_key(next_input.key_input)
                 self.on_update_mouse(next_input.mouse_input)
@@ -171,7 +189,7 @@ def create_agent(name: str, use_ai: bool = False):
     agent = False
     ai = None
     if use_ai:
-        ai = cpu.RandomAI(name)
+        ai = cpu.CrackedFirstAI(name)
     try:
         agent = Agent(name, ai)
         agent.run()

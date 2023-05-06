@@ -9,15 +9,11 @@ from queue import Queue
 from threading import Thread, Lock
 from utils import print_error, print_success
 from schema import (
-    Ping,
     CommsRequest,
     CommsResponse,
     InputState,
     GameState,
     Machine,
-    Wireable,
-    ConnectRequest,
-    ConnectResponse,
     wire_decode,
     Event,
 )
@@ -25,9 +21,8 @@ from connections.consts import (
     WATCHER_IP,
     WATCHER_PORT,
     TICKS_PER_WATCH,
-    ALIVE,
-    DEAD,
-    SUS,
+    SIMULATED_DROP,
+    SIMULATED_LAG,
 )
 import random
 import errors
@@ -252,6 +247,9 @@ class ConnectionManager:
         while self.alive:
             try:
                 msg = conn.recv(2048)
+                if random.random() < SIMULATED_DROP:
+                    continue
+                time.sleep(random.random() * SIMULATED_LAG + SIMULATED_LAG / 2)
                 if not msg or len(msg) <= 0:
                     raise errors.CommsDied(f"Died consuming state from {name}")
                 state = wire_decode(msg)
@@ -260,10 +258,10 @@ class ConnectionManager:
                 with self.leader_lock:
                     if self.leader_name == None:
                         self.leader_name = state.next_leader
-                    if name != self.leader_name:
-                        continue
                     if name == self.need_to_hear_from:
                         self.need_to_hear_from = None
+                    if name != self.leader_name:
+                        continue
                     self.update_game_state(state)
                     self.leader_name = state.next_leader
             except errors.InvalidMessage:
@@ -313,7 +311,7 @@ class ConnectionManager:
         back from the new leader
         """
         if (
-            self.leader_name == self.identity
+            self.leader_name == self.identity.name
             and game_state.next_leader != self.leader_name
         ):
             # A change is coming
