@@ -21,10 +21,10 @@ def old_run_local_game():
 def run_local_game():
     pNeg = Process(target=create_negotiator)
     pWat = Process(target=create_watcher)
-    names = "ABCDEFG"
+    names = "ABCDEFGHIJKLMNO"
     player_procs = []
     for name in names[:NUM_PLAYERS]:
-        proc = Process(target=create_agent, args=((name,)))
+        proc = Process(target=create_agent, args=((name, True)))
         player_procs.append(proc)
 
     pNeg.start()

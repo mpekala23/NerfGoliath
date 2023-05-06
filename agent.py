@@ -20,6 +20,8 @@ import socket
 from game.consts import SCREEN_WIDTH, SCREEN_HEIGHT, FPS
 import sys
 import arcade
+import game.ai as cpu
+from typing import Union
 
 
 class Agent:
@@ -27,13 +29,15 @@ class Agent:
     The actual program that each player will run to participate in the game
     """
 
-    def __init__(self, name: str):
+    def __init__(self, name: str, ai: Union[cpu.AI, None] = None):
         self.alive = True
 
         # Function to pass the connection manager to let it update gamestate
         def update_game_state(game_state: GameState):
             self.game_state = game_state
 
+        self.fout = open(f"output/{name}.txt", "w")
+        self.ai = ai
         (self.identity, am_leader) = self.negotiate(name)
         self.conman = ConnectionManager(self.identity, update_game_state, am_leader)
         self.conman.initialize()
@@ -41,8 +45,8 @@ class Agent:
         self.mouse_input: MouseInput = MouseInput(Vec2(0, 0), False, False)
         self.game = Game(
             self.identity.name,
-            self.on_update_key,
-            self.on_update_mouse,
+            self.on_update_key if self.ai == None else cpu.dummy_keys,
+            self.on_update_mouse if self.ai == None else cpu.dummy_mouse,
             self.identity.name,
         )
         self.game.activate()
@@ -72,6 +76,8 @@ class Agent:
         )
         self.agent_loop_thread = Thread(target=self.agent_loop)
         self.agent_loop_thread.start()
+
+    def run(self):
         self.game.run()
 
     def negotiate(self, name: str) -> tuple[Machine, bool]:
@@ -127,6 +133,7 @@ class Agent:
 
     def agent_loop(self):
         AGENT_SLEEP = 1.0 / FPS
+
         while self.alive:
             with self.conman.leader_lock:
                 if self.conman.is_leader():
@@ -143,20 +150,31 @@ class Agent:
                 elif self.conman.should_backup_broadcast():
                     self.conman.broadcast_game_state(self.game_state)
             self.game.take_game_state(self.game_state)
+
+            if self.ai != None and random.randint(0, 6) == 0:
+                next_input = self.ai.get_move(self.game_state)
+                self.on_update_key(next_input.key_input)
+                self.on_update_mouse(next_input.mouse_input)
+
             time.sleep(AGENT_SLEEP)
 
     def kill(self):
         self.conman.kill()
         self.alive = False
+        self.fout.close()
 
 
-def create_agent(name: str):
+def create_agent(name: str, use_ai: bool = False):
     """
     Creates an agent for a given machine
     """
     agent = False
+    ai = None
+    if use_ai:
+        ai = cpu.RandomAI(name)
     try:
-        agent = Agent(name)
+        agent = Agent(name, ai)
+        agent.run()
     except:
         pass
     if agent:
