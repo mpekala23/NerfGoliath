@@ -29,6 +29,10 @@ class Agent:
 
     def __init__(self, name: str):
         self.alive = True
+        self.up_input_times = []
+        self.up_times = []
+        self.prevy = 0
+
 
         # Function to pass the connection manager to let it update gamestate
         def update_game_state(game_state: GameState):
@@ -110,6 +114,13 @@ class Agent:
         with self.input_lock:
             self.key_input = key_input
             input_state = InputState(self.key_input, self.mouse_input)
+            if input_state.key_input.up:
+                self.up_input_times.append(time.time())
+                print(self.identity.name + ": ")
+                print(self.up_input_times)
+                # write time to file
+                with open("up_input_times.txt", "a") as f:
+                    f.write(str(time.time()) + "\n")
             self.conman.broadcast_input(
                 input_state,
             )
@@ -130,11 +141,13 @@ class Agent:
         while self.alive:
             with self.conman.leader_lock:
                 if self.conman.is_leader():
+                    pre = str(self.game_state.players[0].pos.x)
                     Game.update_game_state(
                         self.game_state,
                         self.conman.input_map,
                         david=self.identity.name,
                     )
+                    post = str(self.game_state.players[0].pos.x)
 
                     worst = self.game_state.get_worst()
                     self.game_state.next_leader = worst

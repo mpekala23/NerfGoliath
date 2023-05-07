@@ -171,6 +171,11 @@ class Game(arcade.Window):
             if not old_player.id in input_map:
                 continue
             p_inp = input_map[old_player.id]
+            if p_inp.key_input.up:
+                print("Move up received" + str(time.time()))
+                # write time to a file
+                with open("rec_time.txt", "a") as f:
+                    f.write(str(time.time()) + "\n")
             new_player = PlayerSprite.get_new_state(old_player, p_inp)
             new_player.is_david = new_player.id == david
             game_state.players[px] = new_player
