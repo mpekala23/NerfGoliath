@@ -132,7 +132,7 @@ class Vec2(Wireable):
 
     @staticmethod
     def decode(s: bytes) -> "Vec2":
-        data = (s.decode())[1:].split("@")
+        data = (s.decode())[1:].strip("$").split("@")
         return Vec2(float(data[0]), float(data[1]))
 
     def __add__(self, other):
@@ -246,7 +246,7 @@ class Spell(Wireable):
 
     @staticmethod
     def decode(s: bytes):
-        data = (s.decode())[1:].split("@")
+        data = (s.decode())[1:].strip("$").split("@")
         return Spell(
             int(float(data[0])),
             Vec2(float(data[1]), float(data[2])),
@@ -312,7 +312,7 @@ class Player(Wireable):
 
     @staticmethod
     def decode(s: bytes):
-        data = (s.decode())[1:].split("@")
+        data = (s.decode())[1:].strip("$").split("@")
         return Player(
             data[0],
             Vec2(float(data[1]), float(data[2])),
@@ -375,7 +375,7 @@ class GameState(Wireable):
 
     @staticmethod
     def decode(s: bytes):
-        data = (s.decode())[1:].split("#")
+        data = (s.decode())[1:].strip("$").split("#")
         next_leader = data[0]
         player_data = data[1].split(",")
         spell_data = data[2].split(",")
@@ -431,7 +431,7 @@ class KeyInput(Wireable):
 
     @staticmethod
     def decode(s: bytes):
-        data = (s.decode())[1:].split("@")
+        data = (s.decode())[1:].strip("$").split("@")
         return KeyInput(
             data[0] == "True", data[1] == "True", data[2] == "True", data[3] == "True"
         )
@@ -466,7 +466,7 @@ class MouseInput(Wireable):
 
     @staticmethod
     def decode(s: bytes):
-        data = (s.decode())[1:].split("@")
+        data = (s.decode())[1:].strip("$").split("@")
         return MouseInput(
             Vec2(float(data[0]), float(data[1])),
             data[2] == "True",
@@ -536,7 +536,7 @@ class ConnectRequest(Wireable):
 
     @staticmethod
     def decode(s: bytes):
-        data = (s.decode())[1:].split("@")
+        data = (s.decode())[1:].strip("$").split("@")
         return ConnectRequest(data[0])
 
 
@@ -614,7 +614,7 @@ class Machine(Wireable):
 
     @staticmethod
     def decode(s: bytes):
-        asJson = json.loads(s.decode()[1:])
+        asJson = json.loads(s.decode()[1:].strip("$"))
         return Machine(
             asJson["name"],
             asJson["host_ip"],

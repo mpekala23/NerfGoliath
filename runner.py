@@ -4,6 +4,7 @@ from agent import create_agent
 from connections.negotiator import create_negotiator
 from connections.watcher import create_watcher
 from game.consts import NUM_PLAYERS
+import time
 
 """
 def old_run_local_game():
@@ -31,6 +32,10 @@ def run_local_game():
     pWat.start()
     for proc in player_procs:
         proc.start()
+
+    time.sleep(30)
+    for proc in player_procs:
+        proc.terminate()
 
     pNeg.join()
     pWat.join()

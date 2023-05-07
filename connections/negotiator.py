@@ -7,6 +7,8 @@ from schema import ConnectRequest, ConnectResponse, Machine, wire_decode
 from connections.consts import NEGOTIATOR_IP, NEGOTIATOR_PORT
 from game.consts import NUM_PLAYERS
 from utils import print_success
+from tests.mocks.mock_socket import socket as mock_socket
+from typing import Union
 
 
 class Negotiator:
@@ -18,15 +20,19 @@ class Negotiator:
 
     def __init__(self):
         self.machines: list[Machine] = []
-        self.socket_map: dict[str, socket.socket] = {}
+        self.socket_map: dict[str, Union[socket.socket, mock_socket]] = {}
         self.port_num = 50000
 
-    def negotiate(self):
+    def negotiate(self, test_sock: Union[mock_socket, None] = None):
         """
         Starts the negotiator server
         """
         # Listen for new player connections
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock = (
+            socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            if test_sock == None
+            else test_sock
+        )
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         sock.bind((NEGOTIATOR_IP, NEGOTIATOR_PORT))
         sock.listen()

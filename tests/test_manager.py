@@ -15,7 +15,7 @@ def get_blank_conman() -> ConnectionManager:
         pass
 
     id = schema.Machine("test", "localhost", 8000, [])
-    return ConnectionManager(id, dummy_update_game_state)
+    return ConnectionManager(id, dummy_update_game_state, False)
 
 
 def get_dummy_socket() -> socket:
