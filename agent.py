@@ -59,7 +59,7 @@ class Agent:
         # Note that because the rendering must happen on the main thread, this spins up
         # another thread which will be doing the updates
         self.game_state = GameState(
-            self.identity.name if am_leader else "",
+            (self.identity.name, 0) if am_leader else ("", -1),
             [
                 Player(
                     name,
@@ -156,7 +156,12 @@ class Agent:
 
                     if self.ticks_since_leader_change >= LEADER_CHANGE_COOLDOWN:
                         worst = self.game_state.get_worst()
-                        self.game_state.next_leader = worst
+                        if worst != self.game_state.next_leader[0]:
+                            self.game_state.next_leader = (
+                                worst,
+                                self.game_state.next_leader[1]
+                                + 1,  # Increment logical value by 1
+                            )
 
                     self.ticks_since_leader_change += 1
 

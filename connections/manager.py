@@ -54,7 +54,9 @@ class ConnectionManager:
         self.input_map: dict[str, InputState] = {self.identity.name: InputState()}
         self.game_sockets: dict[str, Union[socket.socket, mock_socket.socket]] = {}
         self.leader_lock = Lock()
-        self.leader_name: Union[str, None] = self.identity.name if is_leader else None
+        self.leader: Union[tuple[str, int], None] = (
+            (self.identity.name, 0) if is_leader else None
+        )
         self.health_sockets: dict[str, Union[socket.socket, mock_socket.socket]] = {}
         self.health_map: dict[str, int] = {}
         # Maps machine name to place to go for reconnection
@@ -255,14 +257,12 @@ class ConnectionManager:
                 if type(state) != GameState:
                     raise errors.InvalidMessage(msg.decode())
                 with self.leader_lock:
-                    if self.leader_name == None:
-                        self.leader_name = state.next_leader
-                    if name != self.leader_name:
+                    if self.leader != None and state.next_leader[1] < self.leader[1]:
                         continue
                     if name == self.need_to_hear_from:
                         self.need_to_hear_from = None
                     self.update_game_state(state)
-                    self.leader_name = state.next_leader
+                    self.leader = state.next_leader
             except errors.InvalidMessage:
                 continue
             except errors.CommsDied:
@@ -276,7 +276,7 @@ class ConnectionManager:
         """
         Helper function that makes leader-dependent actions more readable
         """
-        return self.leader_name == self.identity.name
+        return self.leader != None and self.leader[0] == self.identity.name
 
     def should_backup_broadcast(self):
         """
@@ -309,13 +309,10 @@ class ConnectionManager:
         Called when this identity is the leader OR the are waiting to hear
         back from the new leader
         """
-        if (
-            self.leader_name == self.identity
-            and game_state.next_leader != self.leader_name
-        ):
+        if self.is_leader() and game_state.next_leader[0] != self.identity.name:
             # A change is coming
-            self.need_to_hear_from = game_state.next_leader
-        self.leader_name = game_state.next_leader
+            self.need_to_hear_from = game_state.next_leader[0]
+        self.leader = game_state.next_leader
         for name in self.game_sockets:
             self.game_sockets[name].sendall(game_state.encode())
             self.log_event(Event("game", self.identity.name, name))

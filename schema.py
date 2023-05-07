@@ -337,7 +337,7 @@ class GameState(Wireable):
 
     def __init__(
         self,
-        next_leader: str,
+        next_leader: tuple[str, int],
         players: list[Player],
         spells: list[Spell],
         spell_count: int = 0,
@@ -363,7 +363,7 @@ class GameState(Wireable):
         for spell in self.spells:
             spell_encodings.append(str(spell.encode())[2:-2])
         result = GameState.unique_char()
-        result += f"{self.next_leader}"
+        result += f"{self.next_leader[0]}#{self.next_leader[1]}"
         result += "#"
         result += f"{','.join(player_encodings)}"
         result += "#"
@@ -376,9 +376,9 @@ class GameState(Wireable):
     @staticmethod
     def decode(s: bytes):
         data = (s.decode())[1:].strip("$").split("#")
-        next_leader = data[0]
-        player_data = data[1].split(",")
-        spell_data = data[2].split(",")
+        next_leader = (data[0], int(float(data[1])))
+        player_data = data[2].split(",")
+        spell_data = data[3].split(",")
         players = []
         for player in player_data:
             players.append(Player.decode(player.encode()))
@@ -387,7 +387,7 @@ class GameState(Wireable):
             if len(spell) <= 0:
                 continue
             spells.append(Spell.decode(spell.encode()))
-        spell_count = int(float(data[3]))
+        spell_count = int(float(data[4]))
         return GameState(next_leader, players, spells, spell_count)
 
     def get_worst(self) -> str:

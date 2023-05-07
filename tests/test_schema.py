@@ -23,7 +23,7 @@ from schema import (
 
 SPELL = Spell(1, Vec2(1, 2), Vec2(3, 4), "creator")
 PLAYER = Player("test", Vec2(1, 2), Vec2(3, 4))
-GAME_STATE = GameState("test", [PLAYER], [SPELL], 3)
+GAME_STATE = GameState(("test", 0), [PLAYER], [SPELL], 3)
 KEY_INPUT = KeyInput(True, True, False, True)
 MOUSE_INPUT = MouseInput(Vec2(1, 6), True, False)
 INPUT_STATE = InputState(KEY_INPUT, MOUSE_INPUT)
