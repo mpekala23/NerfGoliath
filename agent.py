@@ -1,4 +1,8 @@
-from connections.consts import BLANK_MACHINE, NEGOTIATOR_IP, NEGOTIATOR_PORT
+from connections.consts import (
+    NEGOTIATOR_IP,
+    NEGOTIATOR_PORT,
+    LEADER_CHANGE_COOLDOWN,
+)
 from connections.manager import ConnectionManager
 from game.game import Game
 from schema import (
@@ -50,10 +54,12 @@ class Agent:
             self.identity.name,
         )
         self.game.activate()
+        # A ticker to limit leader change updates
+        self.ticks_since_leader_change = 0
         # Note that because the rendering must happen on the main thread, this spins up
         # another thread which will be doing the updates
         self.game_state = GameState(
-            "",
+            self.identity.name if am_leader else "",
             [
                 Player(
                     name,
@@ -133,22 +139,31 @@ class Agent:
 
     def agent_loop(self):
         AGENT_SLEEP = 1.0 / FPS
+        was_leader_last_tick = False
 
         while self.alive:
             with self.conman.leader_lock:
-                if self.conman.is_leader():
+                is_leader_this_tick = self.conman.is_leader()
+                if is_leader_this_tick:
+                    if not was_leader_last_tick:
+                        self.ticks_since_leader_change = 0
+
                     Game.update_game_state(
                         self.game_state,
                         self.conman.input_map,
                         david=self.identity.name,
                     )
 
-                    worst = self.game_state.get_worst()
-                    self.game_state.next_leader = worst
+                    if self.ticks_since_leader_change >= LEADER_CHANGE_COOLDOWN:
+                        worst = self.game_state.get_worst()
+                        self.game_state.next_leader = worst
+
+                    self.ticks_since_leader_change += 1
 
                     self.conman.broadcast_game_state(self.game_state)
                 elif self.conman.should_backup_broadcast():
                     self.conman.broadcast_game_state(self.game_state)
+
             self.game.take_game_state(self.game_state)
 
             if self.ai != None and random.randint(0, 6) == 0:
@@ -156,6 +171,7 @@ class Agent:
                 self.on_update_key(next_input.key_input)
                 self.on_update_mouse(next_input.mouse_input)
 
+            was_leader_last_tick = is_leader_this_tick
             time.sleep(AGENT_SLEEP)
 
     def kill(self):

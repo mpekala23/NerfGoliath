@@ -23,6 +23,10 @@ BLANK_MACHINE = Machine(
     connections=[],
 )
 
+# The minimum number of ticks that a machine must wait after becoming the leader before
+# issuing a new leader change
+LEADER_CHANGE_COOLDOWN = 60
+
 ALIVE = 0
 SUS = 1
 DEAD = 2

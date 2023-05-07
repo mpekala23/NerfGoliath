@@ -25,9 +25,6 @@ from connections.consts import (
     WATCHER_IP,
     WATCHER_PORT,
     TICKS_PER_WATCH,
-    ALIVE,
-    DEAD,
-    SUS,
 )
 import random
 import errors
