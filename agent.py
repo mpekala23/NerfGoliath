@@ -143,6 +143,9 @@ class Agent:
 
         while self.alive:
             with self.conman.leader_lock:
+                self.fout.write(
+                    f"{time.time()},{self.conman.leader[1] if self.conman.leader else -1}\n"
+                )
                 is_leader_this_tick = self.conman.is_leader()
                 if is_leader_this_tick:
                     if not was_leader_last_tick:
