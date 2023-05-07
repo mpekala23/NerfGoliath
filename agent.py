@@ -195,7 +195,7 @@ def create_agent(name: str, use_ai: bool = False):
     agent = False
     ai = None
     if use_ai:
-        ai = cpu.RandomAI(name)
+        ai = cpu.CrackedFirstAI(name)
     try:
         agent = Agent(name, ai)
         agent.run()

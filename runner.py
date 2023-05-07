@@ -33,7 +33,7 @@ def run_local_game():
     for proc in player_procs:
         proc.start()
 
-    time.sleep(30)
+    time.sleep(60)
     for proc in player_procs:
         proc.terminate()
 
