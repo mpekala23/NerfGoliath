@@ -31,6 +31,9 @@ import errors
 import tests.mocks.mock_socket as mock_socket
 from game.consts import NUM_PLAYERS, FPS
 
+SIMULATED_DROP = 0.05
+SIMULATED_LAG = 0.1
+
 
 class ConnectionManager:
     """
@@ -253,6 +256,9 @@ class ConnectionManager:
                 msg = conn.recv(2048)
                 if not msg or len(msg) <= 0:
                     raise errors.CommsDied(f"Died consuming state from {name}")
+                if random.random() < SIMULATED_DROP:
+                    continue
+                time.sleep(random.random() * SIMULATED_LAG + SIMULATED_LAG / 2)
                 state = wire_decode(msg)
                 if type(state) != GameState:
                     raise errors.InvalidMessage(msg.decode())
