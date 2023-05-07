@@ -22,8 +22,14 @@ def get_dummy_socket() -> socket:
     return socket(-1, -1)
 
 
+def dummy_func(name):
+    pass
+
+
 def test_register_connection():
     conman = get_blank_conman()
+    conman.consume_game_state = dummy_func
+    conman.consume_input = dummy_func
     sock = get_dummy_socket()
 
     input_req = schema.CommsRequest("test", ["localhost", 6], "input")
