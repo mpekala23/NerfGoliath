@@ -1,11 +1,11 @@
 from connections.machine import Machine
 
 # How players will connect to the game, through a coordinating server
-NEGOTIATOR_IP = "10.250.155.180"
+NEGOTIATOR_IP = "127.0.0.1"
 NEGOTIATOR_PORT = 50051
 
 # How we will monitor stats about the game, through a passive "watching" server
-WATCHER_IP = "10.250.155.180"
+WATCHER_IP = "127.0.0.1"
 WATCHER_PORT = 50052
 
 # Broadcasting state every tick is to much for the watcher to handle, so we throttle it
