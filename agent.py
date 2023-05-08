@@ -26,6 +26,7 @@ import sys
 import arcade
 import game.ai as cpu
 from typing import Union
+from tests.mocks.mock_socket import socket as mock_socket
 
 
 class Agent:
@@ -33,27 +34,34 @@ class Agent:
     The actual program that each player will run to participate in the game
     """
 
-    def __init__(self, name: str, ai: Union[cpu.AI, None] = None):
+    def __init__(self, name: str, ai: Union[cpu.AI, None] = None, test: bool = False):
         self.alive = True
 
         # Function to pass the connection manager to let it update gamestate
         def update_game_state(game_state: GameState):
             self.game_state = game_state
 
-        self.fout = open(f"output/{name}.txt", "w")
         self.ai = ai
-        (self.identity, am_leader) = self.negotiate(name)
-        self.conman = ConnectionManager(self.identity, update_game_state, am_leader)
-        self.conman.initialize()
+        if not test:
+            (self.identity, am_leader) = self.negotiate(name)
+        else:
+            self.identity = Machine("test", "localhost", 2, [])
+            am_leader = False
         self.key_input: KeyInput = KeyInput(False, False, False, False)
         self.mouse_input: MouseInput = MouseInput(Vec2(0, 0), False, False)
-        self.game = Game(
-            self.identity.name,
-            self.on_update_key if self.ai == None else cpu.dummy_keys,
-            self.on_update_mouse if self.ai == None else cpu.dummy_mouse,
-            self.identity.name,
-        )
-        self.game.activate()
+        if not test:
+            self.fout = open(f"output/{name}.txt", "w")
+            self.conman = ConnectionManager(self.identity, update_game_state, am_leader)
+            self.conman.initialize()
+            self.game = Game(
+                self.identity.name,
+                self.on_update_key if self.ai == None else cpu.dummy_keys,
+                self.on_update_mouse if self.ai == None else cpu.dummy_mouse,
+                self.identity.name,
+            )
+            self.game.activate()
+        else:
+            self.conman = ConnectionManager(self.identity, update_game_state, am_leader)
         # A ticker to limit leader change updates
         self.ticks_since_leader_change = 0
         # Note that because the rendering must happen on the main thread, this spins up
@@ -77,21 +85,28 @@ class Agent:
         )
         # Makes sure we don't double create projectiles
         self.input_lock = Lock()
-        self.game.setup_for_players(
-            [name for name in self.conman.input_sockets] + [self.identity.name]
-        )
-        self.agent_loop_thread = Thread(target=self.agent_loop)
-        self.agent_loop_thread.start()
+        if not test:
+            self.game.setup_for_players(
+                [name for name in self.conman.input_sockets] + [self.identity.name]
+            )
+            self.agent_loop_thread = Thread(target=self.agent_loop)
+            self.agent_loop_thread.start()
 
     def run(self):
         self.game.run()
 
-    def negotiate(self, name: str) -> tuple[Machine, bool]:
+    def negotiate(
+        self, name: str, test_sock: Union[socket.socket, mock_socket, None] = None
+    ) -> tuple[Machine, bool]:
         """
         Connect to the negotiator to get a machine id to play the game
         """
         while self.alive:
-            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock = (
+                test_sock
+                if test_sock != None
+                else socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            )
             try:
                 sock.connect((NEGOTIATOR_IP, NEGOTIATOR_PORT))
                 sock.send(ConnectRequest(name).encode())

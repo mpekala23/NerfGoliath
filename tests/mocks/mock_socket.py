@@ -53,7 +53,7 @@ class socket:
         self.has_listened = True
 
     def accept(self):
-        return self, ""
+        return self, ("peer", 1)
 
     def connect(self, tup):
         self.connected_to = tup
@@ -62,4 +62,4 @@ class socket:
         self.sent.append(bs)
 
     def sendall(self, bs: bytes):
-        pass
+        self.sent.append(bs)

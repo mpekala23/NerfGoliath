@@ -381,6 +381,8 @@ class GameState(Wireable):
         spell_data = data[3].split(",")
         players = []
         for player in player_data:
+            if len(player) <= 0:
+                continue
             players.append(Player.decode(player.encode()))
         spells = []
         for spell in spell_data:
