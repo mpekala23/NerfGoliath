@@ -62,4 +62,4 @@ class socket:
         self.sent.append(bs)
 
     def sendall(self, bs: bytes):
-        pass
+        self.sent.append(bs)

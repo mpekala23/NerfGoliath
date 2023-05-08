@@ -219,7 +219,7 @@ class ConnectionManager:
             self.watcher_ticks["game"] = (
                 self.watcher_ticks["game"] + random.randint(0, 2)
             ) % TICKS_PER_WATCH
-            if self.watcher_ticks["game"] == 0:
+            if self.watcher_ticks["game"] <= 2:
                 self.watcher_sock.send(event.encode())
 
     def consume_input(self, name):
@@ -239,7 +239,6 @@ class ConnectionManager:
             except errors.InvalidMessage:
                 continue
             except errors.CommsDied:
-                # TODO: Mark the death, deal with it elsewhere
                 break
             except Exception as e:
                 print_error(f"ERROR: consume_input died for unknown reason {e.args}")
@@ -256,9 +255,9 @@ class ConnectionManager:
                 msg = conn.recv(2048)
                 if not msg or len(msg) <= 0:
                     raise errors.CommsDied(f"Died consuming state from {name}")
-                if random.random() < SIMULATED_DROP:
-                    continue
-                time.sleep(random.random() * SIMULATED_LAG + SIMULATED_LAG / 2)
+                # if random.random() < SIMULATED_DROP:
+                #    continue
+                # time.sleep(random.random() * SIMULATED_LAG + SIMULATED_LAG / 2)
                 state = wire_decode(msg)
                 if type(state) != GameState:
                     raise errors.InvalidMessage(msg.decode())
@@ -272,7 +271,6 @@ class ConnectionManager:
             except errors.InvalidMessage:
                 continue
             except errors.CommsDied:
-                # TODO: Mark the death, deal with it elsewhere
                 break
             except Exception as e:
                 continue
